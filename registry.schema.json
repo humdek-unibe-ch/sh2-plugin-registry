@@ -1,5 +1,5 @@
 {
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "https://humdek-unibe-ch.github.io/sh2-plugin-registry/registry.schema.json",
     "title": "SelfHelp plugin registry",
     "description": "Schema for registry.json files served as a SelfHelp plugin source.",
@@ -43,7 +43,7 @@
                 "trustLevel":  { "type": "string", "enum": ["official", "reviewed", "untrusted"] },
                 "homepage":    { "type": "string", "format": "uri" },
                 "manifest":    { "type": "object" },
-                "manifestUrl": { "type": "string", "format": "uri" }
+                "manifestUrl": { "type": "string", "format": "uri-reference" }
             },
             "anyOf": [
                 { "required": ["manifest"] },

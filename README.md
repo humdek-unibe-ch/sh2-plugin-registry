@@ -76,7 +76,7 @@ Each plugin entry in `registry.json` has these fields:
 | `trustLevel`  | string         | yes      | `official`, `reviewed`, or `untrusted`. Drives the trust badge in the host UI. |
 | `homepage`    | URL            | no       | Source repo or product page.                                                   |
 | `manifest`    | object         | no       | Inline copy of `plugin.json`. Use either `manifest` or `manifestUrl`.          |
-| `manifestUrl` | URL            | no       | Pointer to a versioned `<plugin-id>-<version>.json` file in this repo.         |
+| `manifestUrl` | URI reference  | no       | Pointer to a versioned `<plugin-id>-<version>.json` file in this repo. Relative paths like `manifests/<file>.json` are valid. |
 
 The host validates the merged manifest against
 `docs/plugins/plugin-manifest.schema.json` before accepting it for
