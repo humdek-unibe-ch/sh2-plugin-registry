@@ -1,0 +1,85 @@
+# SPDX-FileCopyrightText: 2026 Humdek, University of Bern
+# SPDX-License-Identifier: MPL-2.0
+#
+# Build & publish the SelfHelp plugin registry.
+#
+# Trigger: every push to `main` and every PR against it. The job:
+#   1. Validates `registry.json` against `registry.schema.json`.
+#   2. Validates every file under `manifests/` against the host's
+#      `plugin-manifest.schema.json` (vendored copy below).
+#   3. On `main` only: publishes the repo contents (sans the
+#      `.github/` and `manifests/.gitkeep` folders) to GitHub Pages.
+#
+# Every SelfHelp host that has `humdek-public` as a plugin source
+# will pick the changes up on the next `Available` tab open — no
+# action required on the host side.
+
+name: build-registry
+
+on:
+    push:
+        branches: ["main"]
+    pull_request:
+        branches: ["main"]
+    workflow_dispatch:
+
+permissions:
+    contents: read
+    pages: write
+    id-token: write
+
+concurrency:
+    group: "pages"
+    cancel-in-progress: false
+
+jobs:
+    validate:
+        name: Validate registry + manifests
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: "22"
+
+            - name: Install ajv-cli
+              run: npm install -g ajv-cli ajv-formats
+
+            - name: Validate registry.json
+              run: ajv validate -c ajv-formats -s registry.schema.json -d registry.json --strict=false
+
+            - name: Validate plugin manifests (if any)
+              run: |
+                  set -e
+                  if [ -d manifests ]; then
+                      shopt -s nullglob
+                      for f in manifests/*.json; do
+                          echo "Validating $f"
+                          ajv validate -c ajv-formats -s plugin-manifest.schema.json -d "$f" --strict=false || exit 1
+                      done
+                  fi
+
+    publish:
+        name: Publish to GitHub Pages
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        runs-on: ubuntu-latest
+        needs: validate
+        environment:
+            name: github-pages
+            url: ${{ steps.deployment.outputs.page_url }}
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Prepare site
+              run: |
+                  mkdir -p _site
+                  rsync -a --exclude='.git' --exclude='.github' --exclude='_site' ./ _site/
+
+            - uses: actions/configure-pages@v5
+            - uses: actions/upload-pages-artifact@v3
+              with:
+                  path: _site
+
+            - id: deployment
+              uses: actions/deploy-pages@v4
