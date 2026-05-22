@@ -28,6 +28,9 @@ permissions:
     pages: write
     id-token: write
 
+env:
+    FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 concurrency:
     group: "pages"
     cancel-in-progress: false
@@ -37,9 +40,9 @@ jobs:
         name: Validate registry + manifests
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v6
 
-            - uses: actions/setup-node@v4
+            - uses: actions/setup-node@v6
               with:
                   node-version: "22"
 
@@ -69,15 +72,19 @@ jobs:
             name: github-pages
             url: ${{ steps.deployment.outputs.page_url }}
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v6
 
             - name: Prepare site
               run: |
                   mkdir -p _site
                   rsync -a --exclude='.git' --exclude='.github' --exclude='_site' ./ _site/
 
-            - uses: actions/configure-pages@v5
-            - uses: actions/upload-pages-artifact@v3
+            # This repo still needs GitHub Pages enabled in repository
+            # settings with "GitHub Actions" as the build source. The
+            # configure-pages action cannot auto-enable Pages with the
+            # default GITHUB_TOKEN.
+            - uses: actions/configure-pages@v6
+            - uses: actions/upload-pages-artifact@v4
               with:
                   path: _site
 
