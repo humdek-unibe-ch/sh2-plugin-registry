@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SelfHelp Plugin Registry</title>
+  <style>
+    :root {
+      --bg: #f4efe4;
+      --paper: #fffaf0;
+      --ink: #1f2937;
+      --muted: #6b7280;
+      --line: #d6c7ab;
+      --accent: #1d4ed8;
+      --accent-soft: #dbeafe;
+      --good: #0f766e;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, #fff8e8 0, transparent 28rem),
+        linear-gradient(180deg, #efe5d0 0, var(--bg) 18rem);
+    }
+    .wrap {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 40px 20px 64px;
+    }
+    .hero {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      padding: 28px;
+      box-shadow: 0 20px 50px rgba(64, 46, 16, 0.08);
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      line-height: 1;
+    }
+    .lede {
+      margin: 0;
+      color: var(--muted);
+      font-size: 1.05rem;
+      line-height: 1.7;
+      max-width: 44rem;
+    }
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 8px 12px;
+      background: #fff;
+    }
+    .grid {
+      display: grid;
+      gap: 18px;
+      margin-top: 28px;
+    }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: var(--paper);
+      padding: 22px;
+      box-shadow: 0 10px 30px rgba(64, 46, 16, 0.06);
+    }
+    .card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      gap: 16px;
+      margin-bottom: 12px;
+    }
+    .card h2 {
+      margin: 0;
+      font-size: 1.45rem;
+    }
+    .version {
+      white-space: nowrap;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font: 600 0.95rem/1.1 system-ui, sans-serif;
+    }
+    .desc {
+      margin: 0 0 16px;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .tag {
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: #fff;
+      font: 600 0.82rem/1.1 system-ui, sans-serif;
+      color: var(--good);
+    }
+    .links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      font: 600 0.95rem/1.2 system-ui, sans-serif;
+    }
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    a:hover { text-decoration: underline; }
+    .empty, .error {
+      margin-top: 24px;
+      padding: 18px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: var(--paper);
+    }
+    .error {
+      border-color: #ef4444;
+      color: #991b1b;
+      background: #fff7f7;
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <h1>SelfHelp Plugin Registry</h1>
+      <p class="lede">
+        Public catalog of plugins advertised to SelfHelp hosts. Hosts fetch
+        <code>registry.json</code> from this site and then resolve the linked
+        manifests for installation.
+      </p>
+      <div class="meta">
+        <span class="pill">Registry file: <a href="./registry.json">registry.json</a></span>
+        <span class="pill">Source repo: <a href="https://github.com/humdek-unibe-ch/sh2-plugin-registry">GitHub</a></span>
+        <span class="pill" id="published-at">Published: loading...</span>
+      </div>
+    </section>
+
+    <section id="plugin-list" class="grid" aria-live="polite"></section>
+    <section id="empty" class="empty" hidden>No plugins are currently published.</section>
+    <section id="error" class="error" hidden>Failed to load registry.json.</section>
+  </main>
+
+  <script>
+    const list = document.getElementById('plugin-list');
+    const empty = document.getElementById('empty');
+    const error = document.getElementById('error');
+    const publishedAt = document.getElementById('published-at');
+
+    function esc(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function manifestHref(entry) {
+      const manifestUrl = entry.manifestUrl;
+      if (!manifestUrl) {
+        return null;
+      }
+      try {
+        return new URL(manifestUrl, window.location.href).toString();
+      } catch (_) {
+        return manifestUrl;
+      }
+    }
+
+    fetch('./registry.json', { cache: 'no-store' })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error('HTTP ' + response.status);
+        }
+        return response.json();
+      })
+      .then((data) => {
+        const plugins = Array.isArray(data.plugins) ? data.plugins : [];
+        if (data.publishedAt) {
+          publishedAt.textContent = 'Published: ' + data.publishedAt;
+        } else {
+          publishedAt.textContent = 'Published: unknown';
+        }
+
+        if (plugins.length === 0) {
+          empty.hidden = false;
+          return;
+        }
+
+        list.innerHTML = plugins.map((entry) => {
+          const manifest = manifestHref(entry);
+          const tags = [
+            entry.channel ? '<span class="tag">' + esc(entry.channel) + '</span>' : '',
+            entry.trustLevel ? '<span class="tag">' + esc(entry.trustLevel) + '</span>' : '',
+            entry.id ? '<span class="tag">' + esc(entry.id) + '</span>' : ''
+          ].join('');
+
+          const links = [
+            entry.homepage ? '<a href="' + esc(entry.homepage) + '">Homepage</a>' : '',
+            manifest ? '<a href="' + esc(manifest) + '">Manifest</a>' : ''
+          ].filter(Boolean).join('');
+
+          return `
+            <article class="card">
+              <div class="card-head">
+                <div>
+                  <h2>${esc(entry.name || entry.id || 'Unnamed plugin')}</h2>
+                </div>
+                <div class="version">${esc(entry.version || 'unknown')}</div>
+              </div>
+              <p class="desc">${esc(entry.description || 'No description provided.')}</p>
+              <div class="tags">${tags}</div>
+              <div class="links">${links}</div>
+            </article>
+          `;
+        }).join('');
+      })
+      .catch(() => {
+        error.hidden = false;
+      });
+  </script>
+</body>
+</html>
