@@ -88,10 +88,10 @@ the install simply fails fast.
 The host's `PluginSource.channel` is a free-form string. By convention
 we publish in:
 
-- `stable` — production-ready releases (semver MAJOR.MINOR.PATCH).
-- `beta`   — feature-complete pre-release.
-- `rc`     — release candidate.
-- `dev`    — bleeding edge, not for production hosts.
+- `stable`  — production-ready releases (semver MAJOR.MINOR.PATCH).
+- `beta`    — feature-complete pre-release.
+- `alpha`   — early pre-release with known gaps.
+- `nightly` — bleeding edge, not for production hosts.
 
 Multiple channels are served from a single `registry.json` by including
 a `channel` field on each entry. The host filters on the channel
