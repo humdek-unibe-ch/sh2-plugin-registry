@@ -33,15 +33,33 @@ its URL, kind, or trust level. This prevents accidentally pointing the
 ```text
 sh2-plugin-registry/
 ├── README.md
-├── registry.json              ← the file every host downloads
-└── manifests/
-    └── <plugin-id>-<version>.json   ← copy of the plugin's plugin.json
+├── registry.json                       ← the file every host downloads
+├── registry.schema.json                ← canonical pluginEntry schema
+├── plugin-manifest.schema.json         ← canonical plugin.json schema
+├── manifests/
+│   └── <plugin-id>-<version>.json      ← canonical plugin.json snapshot
+├── artifacts/
+│   └── <plugin-id>-<version>/          ← published runtime ESM + CSS
+│       ├── plugin.esm.js
+│       └── plugin.css
+└── scripts/
+    ├── sign.mjs                        ← canonical payload + Ed25519 signer
+    └── build-registry-entry.mjs        ← assembles a signed pluginEntry
 ```
 
-`registry.json` lists every plugin we advertise. Each entry can either
-embed the full manifest under `manifest`, or point at a separate file
-via `manifestUrl` (used here so `registry.json` stays compact even as
-the catalogue grows).
+Every plugin version that ships through this registry has:
+
+* one `manifests/<id>-<version>.json` file (the canonical plugin manifest),
+* one `artifacts/<id>-<version>/` directory with the runtime ESM and
+  optional CSS that the host frontend loads via dynamic `import()`,
+* one entry in `registry.json` that pins those URLs, the
+  `composer.{package,version}`, the SHA-256 checksums of the runtime
+  artifacts, and an Ed25519 `signature` of the canonical signed payload.
+
+`registry.json` is validated against `registry.schema.json` on every push.
+The pluginEntry schema **requires** `composer`, `runtime`, `checksums`,
+`signature`, `signedPayload`, and `keyId` — entries without those fields
+are rejected before they reach a host.
 
 ## Adding or updating a plugin
 
@@ -50,38 +68,69 @@ shipped with the plugin (e.g.
 [`sh2-shp-survey-js/scripts/publish-to-registry.ps1`](https://github.com/humdek-unibe-ch/sh2-shp-survey-js/blob/main/scripts/publish-to-registry.ps1)).
 That script:
 
-1. Validates the plugin's `plugin.json` against the host's manifest
-   schema (vendored copy at `docs/plugins/plugin-manifest.schema.json`).
-2. Builds the frontend + mobile npm packages and (optionally) publishes
-   them to npm.
-3. Copies the manifest to
-   `manifests/<plugin-id>-<version>.json` in this repo.
-4. Updates `registry.json` to reference the new manifest version.
-5. Commits, optionally pushes, and optionally opens a PR.
+1. Builds the plugin's `.shplugin` archive locally (`scripts/build-shplugin`).
+2. Validates the embedded `plugin.json` against the canonical manifest
+   schema vendored in this repo.
+3. Computes SHA-256 checksums of the runtime ESM + CSS shipped inside
+   the archive.
+4. Calls the shared `selfhelp-plugin-build-registry-entry` script
+   (this repo, `scripts/build-registry-entry.mjs`) which constructs the
+   canonical signed payload via `sign.mjs build-payload`, signs it with
+   `sign.mjs sign`, and emits a `pluginEntry` JSON ready to splice into
+   `registry.json`.
+5. Copies the manifest to `manifests/<plugin-id>-<version>.json`,
+   copies the runtime artifacts under
+   `artifacts/<plugin-id>-<version>/`, and updates `registry.json`.
+6. Commits + pushes the registry change (the workflow on this repo
+   republishes GitHub Pages) and runs `gh release create v<version>
+   dist/<plugin-id>-<version>.shplugin --notes-file CHANGELOG.md` so
+   the `.shplugin` is also attached as a release asset for offline
+   installs.
 
-After the workflow auto-publishes via GitHub Pages, every host with
-the `humdek-public` source enabled sees the new plugin in their
+After the GitHub Pages job finishes every host with the
+`humdek-public` source enabled sees the new plugin in their
 **Available** tab on the next refresh.
+
+## Generating an Ed25519 keypair
+
+```bash
+cd sh2-plugin-registry
+npm install
+npm run keygen
+```
+
+The output prints the base64-encoded public + private key plus a
+reminder of where to store each:
+
+* `privateKey` → CI secret `SELFHELP_PLUGIN_SIGNING_KEY`
+  (and `SELFHELP_PLUGIN_SIGNING_KEY_ID` for the matching key id).
+* `publicKey`  → seeded into the host environment as
+  `SELFHELP_PLUGIN_TRUSTED_KEYS=<keyId>;<base64-public-key>`.
+
+`SELFHELP_PLUGIN_DEV_SIGNING_KEY` is the local-dev fallback (keyId
+defaults to `dev`); CI rejects releases signed with `dev` for the
+`official` channel.
 
 ## Listing fields
 
-Each plugin entry in `registry.json` has these fields:
+Each plugin entry in `registry.json` is validated by
+`registry.schema.json`. The non-obvious required fields are:
 
-| Field         | Type           | Required | Description                                                                    |
-| ------------- | -------------- | -------- | ------------------------------------------------------------------------------ |
-| `id`          | string         | yes      | The plugin id (matches `plugin.json` `id`).                                    |
-| `name`        | string         | yes      | Human-friendly plugin name.                                                    |
-| `description` | string         | no       | Short marketing-style description.                                             |
-| `version`     | semver string  | yes      | Latest version we advertise.                                                   |
-| `trustLevel`  | string         | yes      | `official`, `reviewed`, or `untrusted`. Drives the trust badge in the host UI. |
-| `homepage`    | URL            | no       | Source repo or product page.                                                   |
-| `manifest`    | object         | no       | Inline copy of `plugin.json`. Use either `manifest` or `manifestUrl`.          |
-| `manifestUrl` | URI reference  | no       | Pointer to a versioned `<plugin-id>-<version>.json` file in this repo. Relative paths like `manifests/<file>.json` are valid. |
+| Field           | Description                                                                 |
+| --------------- | --------------------------------------------------------------------------- |
+| `composer`      | `{package, version, repository?}`. The host runs `composer require` against this exactly. |
+| `runtime`       | `{entrypointUrl, format, stylesheetUrl?, integrity?, stylesheetIntegrity?}`. The host frontend `import()`s the entrypoint at runtime. |
+| `checksums`     | `{frontendEsm, frontendCss?}`. Host fetches the runtime files and verifies the hex SHA-256 before loading. |
+| `signature`     | Base64-encoded detached Ed25519 signature of `signedPayload`.               |
+| `signedPayload` | Canonical JSON document produced by `sign.mjs build-payload`. Byte-identical to the PHP `SignedPayloadBuilder`. |
+| `keyId`         | Publisher key identifier; host resolves it via `SELFHELP_PLUGIN_TRUSTED_KEYS`. |
 
-The host validates the merged manifest against
-`docs/plugins/plugin-manifest.schema.json` before accepting it for
-install, so adding a malformed entry here does NOT break running hosts —
-the install simply fails fast.
+Optional helpers:
+
+| Field          | Description                                                                 |
+| -------------- | --------------------------------------------------------------------------- |
+| `manifestUrl`  | Relative path to the full `plugin.json` snapshot under `manifests/`.        |
+| `changelogUrl` | URL of the release's CHANGELOG.md.                                          |
 
 ## Channels
 
@@ -93,8 +142,8 @@ we publish in:
 - `alpha`   — early pre-release with known gaps.
 - `nightly` — bleeding edge, not for production hosts.
 
-Multiple channels are served from a single `registry.json` by including
-a `channel` field on each entry. The host filters on the channel
+Multiple channels are served from a single `registry.json` by setting
+the `channel` field per entry. The host filters on the channel
 configured on its source row.
 
 ## Releasing a new registry build (maintainer notes)
@@ -109,7 +158,8 @@ Every push to `main` triggers the
    directory) to GitHub Pages.
 
 Plugins do not run their own build step inside this repo; they push
-pre-built manifest files via the `publish-to-registry` script.
+pre-built `.shplugin` artifacts + manifest files + the signed
+registry entry via the `publish-to-registry` script.
 
 ## License
 

@@ -1,20 +1,45 @@
 ﻿{
-    "schemaVersion":  "1.0",
-    "publishedAt":  "2026-05-22T13:49:07Z",
-    "publisher":  {
-                      "name":  "Humdek, University of Bern",
-                      "url":  "https://github.com/humdek-unibe-ch"
-                  },
-    "plugins":  [
-                    {
-                        "id":  "sh2-shp-survey-js",
-                        "name":  "SurveyJS",
-                        "description":  "SurveyJS v2 integration for SelfHelp CMS. Provides a Mantine-themed Survey Creator (admin), a survey runtime style, and a public submission pipeline that writes into the existing data_tables / data_rows / data_cells. Includes optional GPX, Video, and rich-text custom question types.",
-                        "version":  "0.1.0",
-                        "channel":  "stable",
-                        "trustLevel":  "official",
-                        "homepage":  "https://github.com/humdek-unibe-ch/sh2-shp-survey-js",
-                        "manifestUrl":  "manifests/sh2-shp-survey-js-0.1.0.json"
-                    }
-                ]
+    "schemaVersion": "1.0",
+    "publishedAt": "2026-05-23T13:00:00Z",
+    "publisher": {
+        "name": "Humdek, University of Bern",
+        "url": "https://github.com/humdek-unibe-ch"
+    },
+    "plugins": [
+        {
+            "id": "sh2-shp-survey-js",
+            "name": "SurveyJS",
+            "description": "SurveyJS v2 integration for SelfHelp CMS. Provides a Mantine-themed Survey Creator (admin), a survey runtime style, and a public submission pipeline that writes into the existing data_tables / data_rows / data_cells. Includes optional GPX, Video, and rich-text custom question types.",
+            "version": "0.1.0",
+            "channel": "stable",
+            "trustLevel": "official",
+            "homepage": "https://github.com/humdek-unibe-ch/sh2-shp-survey-js",
+            "manifestUrl": "manifests/sh2-shp-survey-js-0.1.0.json",
+            "compatibility": {
+                "selfhelp": ">=8.0.0-dev <9.0.0",
+                "php": "^8.4",
+                "node": "^22",
+                "react": "^19",
+                "reactNative": "^0.83",
+                "expoSdk": "^55"
+            },
+            "composer": {
+                "package": "humdek/sh2-shp-survey-js",
+                "version": "0.1.0"
+            },
+            "runtime": {
+                "entrypointUrl": "artifacts/sh2-shp-survey-js-0.1.0/plugin.esm.js",
+                "stylesheetUrl": "artifacts/sh2-shp-survey-js-0.1.0/plugin.css",
+                "format": "esm"
+            },
+            "checksums": {
+                "frontendEsm": "0000000000000000000000000000000000000000000000000000000000000000",
+                "frontendCss": "0000000000000000000000000000000000000000000000000000000000000000"
+            },
+            "signature": "PLACEHOLDER_REPLACE_ON_PUBLISH",
+            "signedPayload": "PLACEHOLDER_REPLACE_ON_PUBLISH",
+            "keyId": "dev",
+            "changelogUrl": "https://github.com/humdek-unibe-ch/sh2-shp-survey-js/blob/main/CHANGELOG.md"
+        }
+    ]
 }

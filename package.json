@@ -1,0 +1,25 @@
+{
+    "name": "@selfhelp/plugin-registry-scripts",
+    "private": true,
+    "version": "1.0.0",
+    "description": "SelfHelp plugin registry tooling: canonical signed-payload builder + Ed25519 signer reused by every plugin's publish workflow.",
+    "license": "MPL-2.0",
+    "type": "module",
+    "bin": {
+        "selfhelp-plugin-sign": "scripts/sign.mjs",
+        "selfhelp-plugin-build-registry-entry": "scripts/build-registry-entry.mjs"
+    },
+    "scripts": {
+        "sign": "node scripts/sign.mjs",
+        "keygen": "node scripts/sign.mjs keygen",
+        "build-entry": "node scripts/build-registry-entry.mjs",
+        "validate": "ajv validate -c ajv-formats -s registry.schema.json -d registry.json --strict=false"
+    },
+    "devDependencies": {
+        "ajv-cli": "^5.0.0",
+        "ajv-formats": "^3.0.1"
+    },
+    "dependencies": {
+        "libsodium-wrappers": "^0.7.13"
+    }
+}
