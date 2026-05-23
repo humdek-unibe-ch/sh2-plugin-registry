@@ -71,7 +71,7 @@ try {
 
 function usage() {
     stderr.write(`Usage:
-  sign.mjs build-payload --input <file> [--output <file>]
+  sign.mjs build-payload --input <file|-> [--output <file>]
   sign.mjs sign          --payload <file|-> [--key <base64>] [--key-id <id>] [--out <file>]
   sign.mjs keygen
 `);
@@ -93,8 +93,8 @@ function parseArgs(rest) {
 }
 
 async function runBuildPayload(args) {
-    if (!args.input) throw new Error('--input <path-to-json> is required.');
-    const raw = readFileSync(args.input, 'utf8');
+    if (!args.input) throw new Error('--input <path-to-json|-> is required.');
+    const raw = args.input === '-' ? await readStdin() : readFileSync(args.input, 'utf8');
     const parsed = JSON.parse(raw);
     const canonical = buildCanonicalPayload(parsed);
     if (args.output) {
@@ -238,7 +238,54 @@ function buildCanonicalPayload(input) {
     }
     out.compatibility = compatOut;
 
+    // Optional `archive` block (Phase 2a). Phase-1 inputs omit this key;
+    // the canonical output remains byte-identical to pre-Phase-2
+    // fixtures. Standalone archives REQUIRE `backend.{included,path,
+    // installMode,packageHash}` so the recomputed payload pins the
+    // backend tree hash that the host validator re-derives from disk.
+    if (input.archive && typeof input.archive === 'object') {
+        out.archive = normaliseArchive(input.archive);
+    }
+
     return canonicalStringify(out);
+}
+
+function normaliseArchive(archive) {
+    const mode = requireString(archive, 'mode', 'archive.mode');
+    if (mode !== 'connected' && mode !== 'standalone') {
+        throw new Error(`archive.mode must be "connected" or "standalone" (got "${mode}").`);
+    }
+    const out = { mode };
+
+    if (archive.backend && typeof archive.backend === 'object') {
+        const backend = archive.backend;
+        if (typeof backend.included !== 'boolean') {
+            throw new Error('archive.backend.included must be a boolean.');
+        }
+        const backendOut = {
+            included: backend.included,
+            path: requireString(backend, 'path', 'archive.backend.path'),
+            installMode: requireString(backend, 'installMode', 'archive.backend.installMode'),
+        };
+        if (typeof backend.packageHash === 'string' && backend.packageHash !== '') {
+            backendOut.packageHash = backend.packageHash;
+        }
+        out.backend = backendOut;
+    }
+
+    if (mode === 'standalone') {
+        if (!out.backend) {
+            throw new Error('archive.backend is required when archive.mode="standalone".');
+        }
+        if (out.backend.included !== true) {
+            throw new Error('archive.backend.included must be true when archive.mode="standalone".');
+        }
+        if (!out.backend.packageHash) {
+            throw new Error('archive.backend.packageHash is required when archive.mode="standalone".');
+        }
+    }
+
+    return out;
 }
 
 function requireString(obj, key, label) {
