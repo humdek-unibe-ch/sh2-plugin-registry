@@ -238,14 +238,16 @@ function buildCanonicalPayload(input) {
     }
     out.compatibility = compatOut;
 
-    // Optional `archive` block (Phase 2a). Phase-1 inputs omit this key;
-    // the canonical output remains byte-identical to pre-Phase-2
-    // fixtures. Standalone archives REQUIRE `backend.{included,path,
-    // installMode,packageHash}` so the recomputed payload pins the
-    // backend tree hash that the host validator re-derives from disk.
-    if (input.archive && typeof input.archive === 'object') {
-        out.archive = normaliseArchive(input.archive);
+    // Required `archive` block. Standalone archives REQUIRE
+    // `backend.{included,path,installMode,packageHash}` so the
+    // recomputed payload pins the backend tree hash that the host
+    // validator re-derives from disk. Connected archives may omit the
+    // `backend` sub-block (Composer pulls the package from the
+    // configured repo).
+    if (!input.archive || typeof input.archive !== 'object') {
+        throw new Error('"archive" is required and must be an object.');
     }
+    out.archive = normaliseArchive(input.archive);
 
     return canonicalStringify(out);
 }
