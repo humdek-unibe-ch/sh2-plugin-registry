@@ -61,6 +61,16 @@ The pluginEntry schema **requires** `composer`, `runtime`, `checksums`,
 `signature`, `signedPayload`, and `keyId` — entries without those fields
 are rejected before they reach a host.
 
+In addition, `scripts/guard-trust-fields.mjs` (run by the
+`build-registry` workflow) rejects any entry that claims
+`trustLevel: "official"` or `trustLevel: "reviewed"` while still
+carrying placeholder/empty/`dev` signing fields or the all-zero
+checksum. Until the publishing pipeline is wired with a real Ed25519
+production key, every entry must declare `trustLevel: "untrusted"`.
+Hosts running with `SELFHELP_PLUGIN_REQUIRE_SIGNATURE=true` (the
+default) will refuse to install untrusted entries, which is the
+intended state during this bootstrap phase.
+
 ## Adding or updating a plugin
 
 A plugin author runs the `scripts/publish-to-registry.{ps1,sh}` script

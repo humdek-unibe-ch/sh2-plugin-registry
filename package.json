@@ -13,7 +13,8 @@
         "sign": "node scripts/sign.mjs",
         "keygen": "node scripts/sign.mjs keygen",
         "build-entry": "node scripts/build-registry-entry.mjs",
-        "validate": "ajv validate -c ajv-formats -s registry.schema.json -d registry.json --strict=false"
+        "validate": "ajv validate -c ajv-formats -s registry.schema.json -d registry.json --strict=false",
+        "guard:trust": "node scripts/guard-trust-fields.mjs"
     },
     "devDependencies": {
         "ajv-cli": "^5.0.0",
