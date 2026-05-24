@@ -2,7 +2,7 @@
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "https://selfhelp.app/schemas/plugin-manifest.schema.json",
     "title": "SelfHelp Plugin Manifest (canonical v1.0)",
-    "description": "Canonical schema for `plugin.json` at the root of every SelfHelp plugin repository. One schema for every install source (registry, direct URL, .shplugin archive, pasted JSON). See docs/plugins/installation.md and docs/plugins/distribution.md.",
+    "description": "Canonical schema for `plugin.json` at the root of every SelfHelp plugin repository. One schema for every install source (registry, direct URL, .shplugin archive, pasted JSON). The CANONICAL copy lives at sh-selfhelp_backend/docs/plugins/plugin-manifest.schema.json — every other copy in the ecosystem (sh2-plugin-registry/, plugin repos under plugins/) MUST be byte-identical. The registry's build workflow re-fetches the host copy and rejects drift. See docs/plugins/installation.md and docs/plugins/distribution.md.",
     "type": "object",
     "required": ["id", "name", "version", "pluginApiVersion", "compatibility", "security"],
     "additionalProperties": false,

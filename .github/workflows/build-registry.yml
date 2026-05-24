@@ -55,6 +55,21 @@ jobs:
             - name: Guard registry trust fields
               run: node scripts/guard-trust-fields.mjs registry.json
 
+            - name: Verify plugin-manifest.schema.json is in sync with the host
+              env:
+                  HOST_SCHEMA_URL: ${{ vars.HOST_SCHEMA_URL || 'https://raw.githubusercontent.com/humdek-unibe-ch/sh-selfhelp_backend/main/docs/plugins/plugin-manifest.schema.json' }}
+              run: |
+                  set -euo pipefail
+                  curl -fsSL "$HOST_SCHEMA_URL" -o /tmp/host-plugin-manifest.schema.json
+                  local_hash="$(sha256sum plugin-manifest.schema.json | awk '{print $1}')"
+                  host_hash="$(sha256sum /tmp/host-plugin-manifest.schema.json | awk '{print $1}')"
+                  if [ "$local_hash" != "$host_hash" ]; then
+                      echo "::error::plugin-manifest.schema.json drifted from the canonical host copy ($HOST_SCHEMA_URL)."
+                      diff plugin-manifest.schema.json /tmp/host-plugin-manifest.schema.json || true
+                      exit 1
+                  fi
+                  echo "plugin-manifest.schema.json is byte-identical to the canonical host copy."
+
             - name: Validate plugin manifests (if any)
               run: |
                   set -e
