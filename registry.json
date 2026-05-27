@@ -1,6 +1,7 @@
 {
     "schemaVersion": "1.0",
     "publishedAt": "2026-05-27T17:29:07Z",
+    "baseUrl": "https://humdek-unibe-ch.github.io/sh2-plugin-registry/",
     "publisher": {
         "name": "Humdek, University of Bern",
         "url": "https://github.com/humdek-unibe-ch"
