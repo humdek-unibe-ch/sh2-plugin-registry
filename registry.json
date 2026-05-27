@@ -1,6 +1,6 @@
 {
     "schemaVersion": "1.0",
-    "publishedAt": "2026-05-27T16:51:13Z",
+    "publishedAt": "2026-05-27T17:08:33Z",
     "publisher": {
         "name": "Humdek, University of Bern",
         "url": "https://github.com/humdek-unibe-ch"
@@ -10,11 +10,11 @@
             "id": "sh2-shp-survey-js",
             "name": "SurveyJS",
             "description": "SurveyJS v2 integration for SelfHelp CMS. Provides a Mantine-themed Survey Creator (admin), a survey runtime style, and a public submission pipeline that writes into the existing data_tables / data_rows / data_cells. Includes optional GPX, Video, and rich-text custom question types.",
-            "version": "0.2.9",
+            "version": "0.2.10",
             "channel": "stable",
             "trustLevel": "official",
             "homepage": "https://github.com/humdek-unibe-ch/sh2-shp-survey-js",
-            "manifestUrl": "manifests/sh2-shp-survey-js-0.2.9.json",
+            "manifestUrl": "manifests/sh2-shp-survey-js-0.2.10.json",
             "compatibility": {
                 "selfhelp": ">=8.0.0-dev <9.0.0",
                 "php": "^8.4",
@@ -25,19 +25,19 @@
             },
             "composer": {
                 "package": "humdek/sh2-shp-survey-js",
-                "version": "0.2.9"
+                "version": "0.2.10"
             },
             "runtime": {
-                "entrypointUrl": "artifacts/sh2-shp-survey-js-0.2.9/plugin.esm.js",
+                "entrypointUrl": "artifacts/sh2-shp-survey-js-0.2.10/plugin.esm.js",
                 "format": "esm",
-                "stylesheetUrl": "artifacts/sh2-shp-survey-js-0.2.9/plugin.css"
+                "stylesheetUrl": "artifacts/sh2-shp-survey-js-0.2.10/plugin.css"
             },
             "checksums": {
-                "frontendEsm": "8935e177f851e68e7d7fda6326d4e4cab2adb9c6eb5c51528d5630d92c4d4f63",
+                "frontendEsm": "ddeb7aaa6e23e4be8dab96dc90dfe6e3d7a5847f1cf65ef29da454b46578ad09",
                 "frontendCss": "6c7338a7430a91defd34330e31bc5cc5d77d4ca7985bc802cc091ec9b0aece5a"
             },
-            "signature": "W/riFojUnpZT30auVDKT0kB0j0BVse9GdaEcQKIJoN1jToFGeZCXNERBb1jj6aGZcPfkpw97aAX25yGJY81fAw==",
-            "signedPayload": "{\"archive\":{\"mode\":\"connected\"},\"checksums\":{\"frontendCss\":\"6c7338a7430a91defd34330e31bc5cc5d77d4ca7985bc802cc091ec9b0aece5a\",\"frontendEsm\":\"8935e177f851e68e7d7fda6326d4e4cab2adb9c6eb5c51528d5630d92c4d4f63\"},\"compatibility\":{\"expoSdk\":\"^55\",\"node\":\"^22\",\"php\":\"^8.4\",\"react\":\"^19\",\"reactNative\":\"^0.83\",\"selfhelp\":\">=8.0.0-dev <9.0.0\"},\"composer\":{\"package\":\"humdek/sh2-shp-survey-js\",\"version\":\"0.2.9\"},\"pluginId\":\"sh2-shp-survey-js\",\"runtime\":{\"entrypointUrl\":\"artifacts/sh2-shp-survey-js-0.2.9/plugin.esm.js\",\"format\":\"esm\",\"stylesheetUrl\":\"artifacts/sh2-shp-survey-js-0.2.9/plugin.css\"},\"version\":\"0.2.9\"}",
+            "signature": "x0H4WSmli9WTZM8E1oiSlTSDMPo+g3iXgNpU47iHrvQjBZLY6VtLBU4iXWUdyV3Y4E+8vgjjCGhKwhMrFA0iDg==",
+            "signedPayload": "{\"archive\":{\"mode\":\"connected\"},\"checksums\":{\"frontendCss\":\"6c7338a7430a91defd34330e31bc5cc5d77d4ca7985bc802cc091ec9b0aece5a\",\"frontendEsm\":\"ddeb7aaa6e23e4be8dab96dc90dfe6e3d7a5847f1cf65ef29da454b46578ad09\"},\"compatibility\":{\"expoSdk\":\"^55\",\"node\":\"^22\",\"php\":\"^8.4\",\"react\":\"^19\",\"reactNative\":\"^0.83\",\"selfhelp\":\">=8.0.0-dev <9.0.0\"},\"composer\":{\"package\":\"humdek/sh2-shp-survey-js\",\"version\":\"0.2.10\"},\"pluginId\":\"sh2-shp-survey-js\",\"runtime\":{\"entrypointUrl\":\"artifacts/sh2-shp-survey-js-0.2.10/plugin.esm.js\",\"format\":\"esm\",\"stylesheetUrl\":\"artifacts/sh2-shp-survey-js-0.2.10/plugin.css\"},\"version\":\"0.2.10\"}",
             "keyId": "prod"
         }
     ]
