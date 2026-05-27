@@ -1,6 +1,6 @@
 {
     "schemaVersion": "1.0",
-    "publishedAt": "2026-05-27T21:05:21Z",
+    "publishedAt": "2026-05-27T21:47:05Z",
     "baseUrl": "https://humdek-unibe-ch.github.io/sh2-plugin-registry/",
     "publisher": {
         "name": "Humdek, University of Bern",
@@ -11,11 +11,11 @@
             "id": "sh2-shp-survey-js",
             "name": "SurveyJS",
             "description": "SurveyJS v2 integration for SelfHelp CMS. Provides a Mantine-themed Survey Creator (admin), a survey runtime style, and a public submission pipeline that writes into the existing data_tables / data_rows / data_cells. Includes optional GPX, Video, and rich-text custom question types.",
-            "version": "0.2.12",
+            "version": "0.2.13",
             "channel": "stable",
             "trustLevel": "official",
             "homepage": "https://github.com/humdek-unibe-ch/sh2-shp-survey-js",
-            "manifestUrl": "manifests/sh2-shp-survey-js-0.2.12.json",
+            "manifestUrl": "manifests/sh2-shp-survey-js-0.2.13.json",
             "compatibility": {
                 "selfhelp": ">=8.0.0-dev <9.0.0",
                 "php": "^8.4",
@@ -26,19 +26,19 @@
             },
             "composer": {
                 "package": "humdek/sh2-shp-survey-js",
-                "version": "0.2.12"
+                "version": "0.2.13"
             },
             "runtime": {
-                "entrypointUrl": "https://humdek-unibe-ch.github.io/sh2-plugin-registry/artifacts/sh2-shp-survey-js-0.2.12/plugin.esm.js",
+                "entrypointUrl": "https://humdek-unibe-ch.github.io/sh2-plugin-registry/artifacts/sh2-shp-survey-js-0.2.13/plugin.esm.js",
                 "format": "esm",
-                "stylesheetUrl": "https://humdek-unibe-ch.github.io/sh2-plugin-registry/artifacts/sh2-shp-survey-js-0.2.12/plugin.css"
+                "stylesheetUrl": "https://humdek-unibe-ch.github.io/sh2-plugin-registry/artifacts/sh2-shp-survey-js-0.2.13/plugin.css"
             },
             "checksums": {
-                "frontendEsm": "105f5f92c93de8f2764ea15aaf9299f067af0057c92952724abda83dbf16b5be",
+                "frontendEsm": "81141acec6531de34242771bfce96e05dd68590a88695b2cd1b7569b1bb0bcab",
                 "frontendCss": "6c7338a7430a91defd34330e31bc5cc5d77d4ca7985bc802cc091ec9b0aece5a"
             },
-            "signature": "6GWX+RpxK4QHPCAsvQi137Dw4NiL1CcWdg4BIeCVtpPcBXGgHySg7fWpAW0em9RNskfhbWH6Lpue3QjrRWulDg==",
-            "signedPayload": "{\"archive\":{\"mode\":\"connected\"},\"checksums\":{\"frontendCss\":\"6c7338a7430a91defd34330e31bc5cc5d77d4ca7985bc802cc091ec9b0aece5a\",\"frontendEsm\":\"105f5f92c93de8f2764ea15aaf9299f067af0057c92952724abda83dbf16b5be\"},\"compatibility\":{\"expoSdk\":\"^55\",\"node\":\"^22\",\"php\":\"^8.4\",\"react\":\"^19\",\"reactNative\":\"^0.83\",\"selfhelp\":\">=8.0.0-dev <9.0.0\"},\"composer\":{\"package\":\"humdek/sh2-shp-survey-js\",\"version\":\"0.2.12\"},\"pluginId\":\"sh2-shp-survey-js\",\"runtime\":{\"entrypointUrl\":\"https://humdek-unibe-ch.github.io/sh2-plugin-registry/artifacts/sh2-shp-survey-js-0.2.12/plugin.esm.js\",\"format\":\"esm\",\"stylesheetUrl\":\"https://humdek-unibe-ch.github.io/sh2-plugin-registry/artifacts/sh2-shp-survey-js-0.2.12/plugin.css\"},\"version\":\"0.2.12\"}",
+            "signature": "NqLg0zRImRUtswozu3LvG4pQHzdzx8yu4zQagWQc7NlKJ3VSgR+SvB+wb+Jt8xQnu5momMl/XgUziN5uJzChBA==",
+            "signedPayload": "{\"archive\":{\"mode\":\"connected\"},\"checksums\":{\"frontendCss\":\"6c7338a7430a91defd34330e31bc5cc5d77d4ca7985bc802cc091ec9b0aece5a\",\"frontendEsm\":\"81141acec6531de34242771bfce96e05dd68590a88695b2cd1b7569b1bb0bcab\"},\"compatibility\":{\"expoSdk\":\"^55\",\"node\":\"^22\",\"php\":\"^8.4\",\"react\":\"^19\",\"reactNative\":\"^0.83\",\"selfhelp\":\">=8.0.0-dev <9.0.0\"},\"composer\":{\"package\":\"humdek/sh2-shp-survey-js\",\"version\":\"0.2.13\"},\"pluginId\":\"sh2-shp-survey-js\",\"runtime\":{\"entrypointUrl\":\"https://humdek-unibe-ch.github.io/sh2-plugin-registry/artifacts/sh2-shp-survey-js-0.2.13/plugin.esm.js\",\"format\":\"esm\",\"stylesheetUrl\":\"https://humdek-unibe-ch.github.io/sh2-plugin-registry/artifacts/sh2-shp-survey-js-0.2.13/plugin.css\"},\"version\":\"0.2.13\"}",
             "keyId": "prod"
         }
     ]
