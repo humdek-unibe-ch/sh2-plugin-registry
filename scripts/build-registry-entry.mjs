@@ -92,6 +92,7 @@ function main(args) {
             frontendCss: cssHash || undefined,
         },
         compatibility: manifest.compatibility,
+        archive: manifest.archive || { mode: 'connected' },
     };
 
     const signScript = path.join(path.dirname(fileURLToPath(import.meta.url)), 'sign.mjs');
