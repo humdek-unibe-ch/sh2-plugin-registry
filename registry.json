@@ -1,6 +1,6 @@
 {
     "schemaVersion": "1.0",
-    "publishedAt": "2026-05-27T17:08:33Z",
+    "publishedAt": "2026-05-27T17:29:07Z",
     "publisher": {
         "name": "Humdek, University of Bern",
         "url": "https://github.com/humdek-unibe-ch"
@@ -25,7 +25,11 @@
             },
             "composer": {
                 "package": "humdek/sh2-shp-survey-js",
-                "version": "0.2.10"
+                "version": "0.2.10",
+                "repository": {
+                    "type": "vcs",
+                    "url": "https://github.com/humdek-unibe-ch/sh2-shp-survey-js.git"
+                }
             },
             "runtime": {
                 "entrypointUrl": "artifacts/sh2-shp-survey-js-0.2.10/plugin.esm.js",
@@ -36,8 +40,8 @@
                 "frontendEsm": "ddeb7aaa6e23e4be8dab96dc90dfe6e3d7a5847f1cf65ef29da454b46578ad09",
                 "frontendCss": "6c7338a7430a91defd34330e31bc5cc5d77d4ca7985bc802cc091ec9b0aece5a"
             },
-            "signature": "x0H4WSmli9WTZM8E1oiSlTSDMPo+g3iXgNpU47iHrvQjBZLY6VtLBU4iXWUdyV3Y4E+8vgjjCGhKwhMrFA0iDg==",
-            "signedPayload": "{\"archive\":{\"mode\":\"connected\"},\"checksums\":{\"frontendCss\":\"6c7338a7430a91defd34330e31bc5cc5d77d4ca7985bc802cc091ec9b0aece5a\",\"frontendEsm\":\"ddeb7aaa6e23e4be8dab96dc90dfe6e3d7a5847f1cf65ef29da454b46578ad09\"},\"compatibility\":{\"expoSdk\":\"^55\",\"node\":\"^22\",\"php\":\"^8.4\",\"react\":\"^19\",\"reactNative\":\"^0.83\",\"selfhelp\":\">=8.0.0-dev <9.0.0\"},\"composer\":{\"package\":\"humdek/sh2-shp-survey-js\",\"version\":\"0.2.10\"},\"pluginId\":\"sh2-shp-survey-js\",\"runtime\":{\"entrypointUrl\":\"artifacts/sh2-shp-survey-js-0.2.10/plugin.esm.js\",\"format\":\"esm\",\"stylesheetUrl\":\"artifacts/sh2-shp-survey-js-0.2.10/plugin.css\"},\"version\":\"0.2.10\"}",
+            "signature": "gs1F9JAUL92Ov5xeZX7BV6aQKcG6ZsKymvVoMUpiTQJoPUsaNJXS0spL8lo86bpuiMU73D3D4bmzaEpMrzHJBQ==",
+            "signedPayload": "{\"archive\":{\"mode\":\"connected\"},\"checksums\":{\"frontendCss\":\"6c7338a7430a91defd34330e31bc5cc5d77d4ca7985bc802cc091ec9b0aece5a\",\"frontendEsm\":\"ddeb7aaa6e23e4be8dab96dc90dfe6e3d7a5847f1cf65ef29da454b46578ad09\"},\"compatibility\":{\"expoSdk\":\"^55\",\"node\":\"^22\",\"php\":\"^8.4\",\"react\":\"^19\",\"reactNative\":\"^0.83\",\"selfhelp\":\">=8.0.0-dev <9.0.0\"},\"composer\":{\"package\":\"humdek/sh2-shp-survey-js\",\"repository\":{\"type\":\"vcs\",\"url\":\"https://github.com/humdek-unibe-ch/sh2-shp-survey-js.git\"},\"version\":\"0.2.10\"},\"pluginId\":\"sh2-shp-survey-js\",\"runtime\":{\"entrypointUrl\":\"artifacts/sh2-shp-survey-js-0.2.10/plugin.esm.js\",\"format\":\"esm\",\"stylesheetUrl\":\"artifacts/sh2-shp-survey-js-0.2.10/plugin.css\"},\"version\":\"0.2.10\"}",
             "keyId": "prod"
         }
     ]
