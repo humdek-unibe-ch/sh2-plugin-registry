@@ -109,6 +109,14 @@ for (const ref of registry.frontend ?? []) {
   const release = loadJson(ref.releaseUrl);
   if (validate('frontend-release.schema.json', ref.releaseUrl, release)) verifyRelease(release, ref.releaseUrl, trustedKeys);
 }
+for (const ref of registry.scheduler ?? []) {
+  const release = loadJson(ref.releaseUrl);
+  if (validate('scheduler-release.schema.json', ref.releaseUrl, release)) verifyRelease(release, ref.releaseUrl, trustedKeys);
+}
+for (const ref of registry.worker ?? []) {
+  const release = loadJson(ref.releaseUrl);
+  if (validate('worker-release.schema.json', ref.releaseUrl, release)) verifyRelease(release, ref.releaseUrl, trustedKeys);
+}
 
 if (errors.length > 0) {
   console.error('\nUnified registry validation FAILED:');

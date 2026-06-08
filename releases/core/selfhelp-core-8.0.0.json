@@ -29,7 +29,7 @@
     "manualConfirmationRequired": false
   },
   "security": {
-    "signature": "iRnqIMzJlWWR7gfEhwMhHUhtjV+7YKE1Jl8OJkv54HotrXkzeNxnszuqpF17zvgWbFNWCklHI062TMTbKwc8BA==",
+    "signature": "gAtDfyEYFAOiQy9t6iIjpqeEMiOlcHZ2wP9UdpBOA4KBfkouuqwrras4UubE6+IQM9DqiwZOg0cc26MAhqdiDg==",
     "keyId": "selfhelp-official-2026",
     "signedPayloadSha256": "sha256:73f184aa32ff6f94224d40340c875492a9a288c6db47684ccc4a60ee874f93f9"
   }

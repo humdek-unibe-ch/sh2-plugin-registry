@@ -4,14 +4,14 @@ Audience: Plugin authors and registry maintainers.
 Status: active.
 Applies to: `sh2-plugin-registry`.
 Last verified: 2026-06-08.
-Source of truth: `registry.json`, `registry.schema.json`, `core-release.schema.json`, `frontend-release.schema.json`, `trusted-keys.schema.json`, `advisory-feed.schema.json`, `plugin-manifest.schema.json`, and the repository tree.
+Source of truth: `registry.json`, `registry.schema.json`, `core-release.schema.json`, `frontend-release.schema.json`, `scheduler-release.schema.json`, `worker-release.schema.json`, `compatibility.schema.json`, `trusted-keys.schema.json`, `advisory-feed.schema.json`, `plugin-manifest.schema.json`, and the repository tree.
 
 ## Unified registry (core + frontend + plugins)
 
 This repository is the **one official SelfHelp registry**. In addition to the
-plugin catalogue, it now serves the signed **core** and **frontend** release
-metadata consumed by the SelfHelp Manager (`sh-manager`). There is no second
-registry.
+plugin catalogue, it serves the signed **core**, **frontend**, **scheduler**,
+and **worker** release metadata consumed by the SelfHelp Manager (`sh-manager`).
+There is no second registry.
 
 `registry.json` gained these top-level keys (all additive; the existing
 `plugins[]` contract is unchanged):
@@ -21,16 +21,34 @@ registry.
 | `requiresManager` | Minimum `sh-manager` semver range that may consume this registry. |
 | `core[]` | Release refs `{id, version, channel, releaseUrl}` → `releases/core/<id>.json`. |
 | `frontend[]` | Release refs → `releases/frontend/<id>.json`. |
-| `scheduler[]`, `worker[]` | Reserved release-ref arrays (usually shipped inside the core image set). |
+| `scheduler[]` | First-class scheduled-jobs-runner release refs → `releases/scheduler/<id>.json`. |
+| `worker[]` | First-class Messenger-worker release refs → `releases/worker/<id>.json`. |
 | `trustedKeysUrl` | Path to `keys/trusted-keys.json` (public Ed25519 keys). |
 | `advisoriesUrl` | Path to `advisories.json` (security advisory feed). |
+
+The **scheduler** and **worker** are built from the same core source as the
+backend, but they are published as **independently versioned, separately
+pinnable artifacts** so an instance can run a distinct scheduler/worker version
+(invariant: every instance owns its own backend/frontend/scheduler/worker
+versions). Their release docs mirror the frontend release shape with a
+`backendCompatibility.requiredCoreRange` (and optional `requiredApiVersion`);
+the manager resolves the newest non-blocked scheduler/worker whose
+`requiredCoreRange` the chosen core version satisfies (`@shm/resolver`
+`pickSchedulerForCore` / `pickWorkerForCore`).
 
 Each `releases/**/*.json` file is a fully signed release: it carries a
 `security` block `{signature, keyId, signedPayloadSha256}`. The signature is an
 Ed25519 detached signature over the canonical JSON of the release **without** its
-`security` block — the same canonical form produced by `sign.mjs` and consumed
-by the manager's `@shm/registry`. `scripts/validate-unified.mjs` re-verifies
-every signed release against `keys/trusted-keys.json` on every push.
+`security` block — the same canonical form produced by `scripts/sign-release.mjs`
+and consumed by the manager's `@shm/registry`. `scripts/validate-unified.mjs`
+re-verifies every signed core/frontend/scheduler/worker release against
+`keys/trusted-keys.json` on every push.
+
+Re-sign a release document after editing it with
+`node scripts/sign-release.mjs --input releases/<kind>/<id>.json`. With no
+signing key in the environment it uses the deterministic dev key (the committed
+fixtures' key); production signing passes `--key`/`SELFHELP_PLUGIN_SIGNING_KEY`
++ `--key-id`.
 
 ## Repository layout
 
@@ -41,6 +59,9 @@ sh2-plugin-registry/
 ├── registry.schema.json                # registry index schema (plugins + core/frontend refs)
 ├── core-release.schema.json            # signed core release schema
 ├── frontend-release.schema.json        # signed frontend release schema
+├── scheduler-release.schema.json       # signed scheduler release schema
+├── worker-release.schema.json          # signed worker release schema
+├── compatibility.schema.json           # reusable backendCompatibility descriptor
 ├── trusted-keys.schema.json            # public Ed25519 trusted-keys schema
 ├── advisory-feed.schema.json           # security advisory feed schema
 ├── plugin-manifest.schema.json         # canonical plugin.json schema
@@ -49,7 +70,9 @@ sh2-plugin-registry/
 │   └── trusted-keys.json               # public Ed25519 keys (no private material)
 ├── releases/
 │   ├── core/<id>.json                  # signed SelfHelp core releases
-│   └── frontend/<id>.json              # signed SelfHelp frontend releases
+│   ├── frontend/<id>.json              # signed SelfHelp frontend releases
+│   ├── scheduler/<id>.json             # signed SelfHelp scheduler releases
+│   └── worker/<id>.json                # signed SelfHelp worker releases
 ├── manifests/
 │   └── <plugin-id>-<version>.json      # canonical plugin.json snapshot
 ├── artifacts/
@@ -57,7 +80,8 @@ sh2-plugin-registry/
 │       ├── plugin.esm.js
 │       └── plugin.css
 └── scripts/
-    ├── sign.mjs                        # canonical payload + Ed25519 signer
+    ├── sign.mjs                        # canonical plugin payload + Ed25519 signer
+    ├── sign-release.mjs                # signs a core/frontend/scheduler/worker release doc
     ├── validate-unified.mjs            # validates index + releases + verifies signatures
     ├── build-registry-entry.mjs        # assembles a signed pluginEntry
     └── guard-trust-fields.mjs          # rejects fake official/reviewed trust

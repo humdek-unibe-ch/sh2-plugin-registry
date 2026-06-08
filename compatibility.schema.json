@@ -1,0 +1,13 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://selfhelp.app/schemas/compatibility.schema.json",
+    "title": "SelfHelp backend compatibility block",
+    "description": "Reusable compatibility descriptor for a SelfHelp distribution artifact (frontend/scheduler/worker). `requiredCoreRange` is the semver range of SelfHelp core this artifact runs against. `requiredApiVersion` is the optional CMS API contract version the artifact needs (frontend BFF); core-coupled artifacts (scheduler/worker) may omit it.",
+    "type": "object",
+    "required": ["requiredCoreRange"],
+    "additionalProperties": true,
+    "properties": {
+        "requiredCoreRange": {"type": "string", "minLength": 1},
+        "requiredApiVersion": {"type": "string", "minLength": 1}
+    }
+}
