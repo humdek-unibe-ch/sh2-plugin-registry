@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "1.0",
+  "keys": [
+    {
+      "keyId": "selfhelp-official-2026",
+      "publicKey": "mxMLE7g6HkzHYTyX9L020OTuCmOu8EG4ciYmPo15yc8=",
+      "algorithm": "ed25519",
+      "status": "active"
+    }
+  ]
+}

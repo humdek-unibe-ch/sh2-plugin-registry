@@ -52,6 +52,11 @@ jobs:
             - name: Validate registry.json
               run: ajv validate -c ajv-formats -s registry.schema.json -d registry.json --strict=false
 
+            - name: Validate unified registry + verify signed core/frontend releases
+              run: |
+                  npm ci || npm install
+                  npm run validate:unified
+
             - name: Guard registry trust fields
               run: node scripts/guard-trust-fields.mjs registry.json
 

@@ -14,9 +14,11 @@
         "keygen": "node scripts/sign.mjs keygen",
         "build-entry": "node scripts/build-registry-entry.mjs",
         "validate": "ajv validate -c ajv-formats -s registry.schema.json -d registry.json --strict=false",
+        "validate:unified": "node scripts/validate-unified.mjs",
         "guard:trust": "node scripts/guard-trust-fields.mjs"
     },
     "devDependencies": {
+        "ajv": "^8.17.1",
         "ajv-cli": "^5.0.0",
         "ajv-formats": "^3.0.1"
     },

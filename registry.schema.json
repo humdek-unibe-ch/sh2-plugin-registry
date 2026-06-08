@@ -11,6 +11,10 @@
             "type": "string",
             "enum": ["1.0"]
         },
+        "requiresManager": {
+            "type": "string",
+            "description": "Minimum SelfHelp Manager (sh-manager) semver range that can consume this registry."
+        },
         "publishedAt": {
             "type": "string",
             "format": "date-time"
@@ -30,12 +34,50 @@
             },
             "required": ["name"]
         },
+        "trustedKeysUrl": {
+            "type": "string",
+            "description": "Relative or absolute URL to the Ed25519 trusted-keys file used to verify signed core/frontend releases."
+        },
+        "advisoriesUrl": {
+            "type": "string",
+            "description": "Relative or absolute URL to the security advisory feed."
+        },
+        "core": {
+            "type": "array",
+            "description": "SelfHelp core releases (signed backend/worker/scheduler image sets).",
+            "items": {"$ref": "#/$defs/releaseRef"}
+        },
+        "frontend": {
+            "type": "array",
+            "description": "SelfHelp frontend releases (signed Next.js standalone images).",
+            "items": {"$ref": "#/$defs/releaseRef"}
+        },
+        "scheduler": {
+            "type": "array",
+            "items": {"$ref": "#/$defs/releaseRef"}
+        },
+        "worker": {
+            "type": "array",
+            "items": {"$ref": "#/$defs/releaseRef"}
+        },
         "plugins": {
             "type": "array",
             "items": {"$ref": "#/$defs/pluginEntry"}
         }
     },
     "$defs": {
+        "releaseRef": {
+            "type": "object",
+            "required": ["id", "version", "channel", "releaseUrl"],
+            "additionalProperties": false,
+            "properties": {
+                "id":         {"type": "string", "minLength": 1},
+                "version":    {"type": "string", "minLength": 1},
+                "channel":    {"type": "string", "enum": ["stable", "beta", "alpha", "nightly"]},
+                "releaseUrl": {"type": "string", "minLength": 1, "description": "Relative (to baseUrl) or absolute URL of the signed release document."},
+                "blocked":    {"type": "boolean"}
+            }
+        },
         "pluginEntry": {
             "type": "object",
             "required": ["id", "name", "version", "trustLevel", "composer", "runtime", "checksums", "signature", "signedPayload", "keyId"],

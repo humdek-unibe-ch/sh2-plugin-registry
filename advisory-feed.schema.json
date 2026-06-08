@@ -1,0 +1,40 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://selfhelp.app/schemas/advisory-feed.schema.json",
+    "title": "SelfHelp security advisory feed",
+    "description": "Security advisories affecting core/frontend/plugin versions. sh-manager blocks updates to advisory-blocked versions and recommends a fixed version.",
+    "type": "object",
+    "required": ["schemaVersion", "advisories"],
+    "additionalProperties": false,
+    "properties": {
+        "schemaVersion": {"type": "string"},
+        "advisories": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["id", "severity", "affected", "fixed", "recommendedAction", "blocked"],
+                "additionalProperties": true,
+                "properties": {
+                    "id": {"type": "string"},
+                    "severity": {"type": "string", "enum": ["low", "medium", "high", "critical"]},
+                    "affected": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "required": ["kind", "versions"],
+                            "properties": {
+                                "kind": {"type": "string", "enum": ["core", "frontend", "plugin"]},
+                                "id": {"type": "string"},
+                                "versions": {"type": "string"}
+                            }
+                        }
+                    },
+                    "fixed": {"type": "array"},
+                    "recommendedAction": {"type": "string"},
+                    "blocked": {"type": "boolean"},
+                    "detailsUrl": {"type": "string"}
+                }
+            }
+        }
+    }
+}

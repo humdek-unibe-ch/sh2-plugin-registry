@@ -1,11 +1,32 @@
 {
     "schemaVersion": "1.0",
-    "publishedAt": "2026-05-28T09:53:18Z",
+    "requiresManager": ">=0.1.0",
+    "publishedAt": "2026-06-05T12:00:00Z",
     "baseUrl": "https://humdek-unibe-ch.github.io/sh2-plugin-registry/",
     "publisher": {
         "name": "Humdek, University of Bern",
         "url": "https://github.com/humdek-unibe-ch"
     },
+    "trustedKeysUrl": "keys/trusted-keys.json",
+    "advisoriesUrl": "advisories.json",
+    "core": [
+        {
+            "id": "selfhelp-core-8.0.0",
+            "version": "8.0.0",
+            "channel": "stable",
+            "releaseUrl": "releases/core/selfhelp-core-8.0.0.json"
+        }
+    ],
+    "frontend": [
+        {
+            "id": "selfhelp-frontend-8.0.0",
+            "version": "8.0.0",
+            "channel": "stable",
+            "releaseUrl": "releases/frontend/selfhelp-frontend-8.0.0.json"
+        }
+    ],
+    "scheduler": [],
+    "worker": [],
     "plugins": [
         {
             "id": "sh2-shp-survey-js",

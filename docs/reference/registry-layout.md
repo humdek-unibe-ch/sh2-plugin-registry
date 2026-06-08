@@ -3,17 +3,53 @@
 Audience: Plugin authors and registry maintainers.
 Status: active.
 Applies to: `sh2-plugin-registry`.
-Last verified: 2026-06-03.
-Source of truth: `registry.json`, `registry.schema.json`, `plugin-manifest.schema.json`, and the repository tree.
+Last verified: 2026-06-08.
+Source of truth: `registry.json`, `registry.schema.json`, `core-release.schema.json`, `frontend-release.schema.json`, `trusted-keys.schema.json`, `advisory-feed.schema.json`, `plugin-manifest.schema.json`, and the repository tree.
+
+## Unified registry (core + frontend + plugins)
+
+This repository is the **one official SelfHelp registry**. In addition to the
+plugin catalogue, it now serves the signed **core** and **frontend** release
+metadata consumed by the SelfHelp Manager (`sh-manager`). There is no second
+registry.
+
+`registry.json` gained these top-level keys (all additive; the existing
+`plugins[]` contract is unchanged):
+
+| Field | Description |
+| --- | --- |
+| `requiresManager` | Minimum `sh-manager` semver range that may consume this registry. |
+| `core[]` | Release refs `{id, version, channel, releaseUrl}` → `releases/core/<id>.json`. |
+| `frontend[]` | Release refs → `releases/frontend/<id>.json`. |
+| `scheduler[]`, `worker[]` | Reserved release-ref arrays (usually shipped inside the core image set). |
+| `trustedKeysUrl` | Path to `keys/trusted-keys.json` (public Ed25519 keys). |
+| `advisoriesUrl` | Path to `advisories.json` (security advisory feed). |
+
+Each `releases/**/*.json` file is a fully signed release: it carries a
+`security` block `{signature, keyId, signedPayloadSha256}`. The signature is an
+Ed25519 detached signature over the canonical JSON of the release **without** its
+`security` block — the same canonical form produced by `sign.mjs` and consumed
+by the manager's `@shm/registry`. `scripts/validate-unified.mjs` re-verifies
+every signed release against `keys/trusted-keys.json` on every push.
 
 ## Repository layout
 
 ```text
 sh2-plugin-registry/
 ├── README.md
-├── registry.json                       # the file every host downloads
-├── registry.schema.json                # canonical pluginEntry schema
+├── registry.json                       # the file every host + manager downloads
+├── registry.schema.json                # registry index schema (plugins + core/frontend refs)
+├── core-release.schema.json            # signed core release schema
+├── frontend-release.schema.json        # signed frontend release schema
+├── trusted-keys.schema.json            # public Ed25519 trusted-keys schema
+├── advisory-feed.schema.json           # security advisory feed schema
 ├── plugin-manifest.schema.json         # canonical plugin.json schema
+├── advisories.json                     # security advisory feed
+├── keys/
+│   └── trusted-keys.json               # public Ed25519 keys (no private material)
+├── releases/
+│   ├── core/<id>.json                  # signed SelfHelp core releases
+│   └── frontend/<id>.json              # signed SelfHelp frontend releases
 ├── manifests/
 │   └── <plugin-id>-<version>.json      # canonical plugin.json snapshot
 ├── artifacts/
@@ -22,6 +58,7 @@ sh2-plugin-registry/
 │       └── plugin.css
 └── scripts/
     ├── sign.mjs                        # canonical payload + Ed25519 signer
+    ├── validate-unified.mjs            # validates index + releases + verifies signatures
     ├── build-registry-entry.mjs        # assembles a signed pluginEntry
     └── guard-trust-fields.mjs          # rejects fake official/reviewed trust
 ```
