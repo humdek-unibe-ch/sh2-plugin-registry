@@ -1,0 +1,5 @@
+# .shplugin install archives are checksum-verified byte-for-byte against
+# artifacts.sha256 in the signed release documents. Disable all EOL/text
+# conversion so the bytes (and therefore the SHA-256) stay identical on every
+# platform and on a fresh clone.
+*.shplugin -text
