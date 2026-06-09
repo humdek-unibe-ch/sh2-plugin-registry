@@ -10,7 +10,7 @@
         "kind": {"const": "selfhelp-core-release"},
         "id": {"type": "string", "minLength": 1},
         "version": {"type": "string", "minLength": 1},
-        "channel": {"type": "string", "enum": ["stable", "beta", "alpha", "nightly"]},
+        "channel": {"type": "string", "enum": ["stable", "beta", "nightly", "test"]},
         "releasedAt": {"type": "string"},
         "minimumDirectUpgradeFrom": {"type": "string", "minLength": 1},
         "pluginApiVersion": {"type": "string", "minLength": 1},
@@ -34,10 +34,39 @@
                 "automaticRollback": {"type": "string"}
             }
         },
+        "runtime": {"$ref": "#/$defs/runtimeServicePolicy"},
         "security": {"$ref": "#/$defs/signature"},
         "blocked": {"type": "boolean"}
     },
     "$defs": {
+        "runtimeServiceRange": {
+            "type": "object",
+            "required": ["supportedVersions", "recommendedImage"],
+            "properties": {
+                "supportedVersions": {"type": "string", "minLength": 1},
+                "minimumRequired": {"type": "string"},
+                "recommendedVersion": {"type": "string"},
+                "recommendedImage": {"type": "string", "minLength": 1},
+                "recommendedDigest": {"type": "string"},
+                "updateRequired": {"type": "boolean"},
+                "majorUpgradeRequiresManualApproval": {"type": "boolean"}
+            }
+        },
+        "runtimeServicePolicy": {
+            "type": "object",
+            "required": ["mysql", "redis", "mercure"],
+            "properties": {
+                "php": {
+                    "type": "object",
+                    "required": ["backendImagePhpVersion"],
+                    "properties": {"backendImagePhpVersion": {"type": "string", "minLength": 1}}
+                },
+                "mysql": {"$ref": "#/$defs/runtimeServiceRange"},
+                "redis": {"$ref": "#/$defs/runtimeServiceRange"},
+                "mercure": {"$ref": "#/$defs/runtimeServiceRange"},
+                "traefik": {"$ref": "#/$defs/runtimeServiceRange"}
+            }
+        },
         "imageRef": {
             "type": "object",
             "required": ["image", "digest"],

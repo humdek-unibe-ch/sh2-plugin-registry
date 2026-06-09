@@ -1,0 +1,156 @@
+/*
+SPDX-FileCopyrightText: 2026 Humdek, University of Bern
+SPDX-License-Identifier: MPL-2.0
+*/
+/**
+ * Unit coverage for assemble-release.mjs: every kind must assemble into a
+ * document that, once signed with sign-release.mjs (dev key), passes its full
+ * release schema AND verifies against the committed trusted keys — i.e. the
+ * exact chain the real publish flow uses (assemble -> sign -> validate:unified).
+ */
+import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { test } from 'node:test';
+import { createRequire } from 'node:module';
+import Ajv from 'ajv';
+import addFormats from 'ajv-formats';
+import { assembleRelease, parseArgs } from './assemble-release.mjs';
+
+const require = createRequire(import.meta.url);
+const sodium = require('libsodium-wrappers');
+
+const SCRIPTS = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.join(SCRIPTS, '..');
+const trustedKeys = JSON.parse(readFileSync(path.join(ROOT, 'keys', 'trusted-keys.json'), 'utf8'));
+
+function canonicalStringify(value) {
+  if (value === null) return 'null';
+  if (typeof value === 'string' || typeof value === 'number') return JSON.stringify(value);
+  if (typeof value === 'boolean') return value ? 'true' : 'false';
+  if (Array.isArray(value)) return '[' + value.map(canonicalStringify).join(',') + ']';
+  if (typeof value === 'object') {
+    const keys = Object.keys(value).sort();
+    return '{' + keys.map((k) => JSON.stringify(k) + ':' + canonicalStringify(value[k])).join(',') + '}';
+  }
+  throw new Error(`Unsupported value: ${typeof value}`);
+}
+
+function schemaFor(kind) {
+  const file = {
+    'selfhelp-core-release': 'core-release.schema.json',
+    'selfhelp-frontend-release': 'frontend-release.schema.json',
+    'selfhelp-scheduler-release': 'scheduler-release.schema.json',
+    'selfhelp-worker-release': 'worker-release.schema.json',
+  }[kind];
+  return JSON.parse(readFileSync(path.join(ROOT, file), 'utf8'));
+}
+
+/** Sign an unsigned release with the deterministic dev key + validate + verify. */
+function signValidateVerify(body) {
+  const tmp = mkdtempSync(path.join(tmpdir(), 'assemble-rel-'));
+  try {
+    const file = path.join(tmp, 'release.json');
+    writeFileSync(file, JSON.stringify(body, null, 2) + '\n', 'utf8');
+    // sign-release.mjs with no key env uses the committed deterministic dev key.
+    execFileSync('node', [path.join(SCRIPTS, 'sign-release.mjs'), '--input', file], { stdio: 'pipe' });
+    const signed = JSON.parse(readFileSync(file, 'utf8'));
+
+    const ajv = new Ajv({ allErrors: true, strict: false });
+    addFormats(ajv);
+    const ok = ajv.compile(schemaFor(signed.kind))(signed);
+    assert.ok(ok, `signed ${signed.kind} should pass its full schema: ${JSON.stringify(ajv.errors)}`);
+
+    const key = trustedKeys.keys.find((k) => k.keyId === signed.security.keyId && k.status === 'active');
+    assert.ok(key, `trusted key ${signed.security.keyId} must be active`);
+    const clone = { ...signed };
+    delete clone.security;
+    const payload = canonicalStringify(clone);
+    assert.equal(
+      signed.security.signedPayloadSha256,
+      `sha256:${createHash('sha256').update(payload, 'utf8').digest('hex')}`,
+      'signedPayloadSha256 must match the canonical payload',
+    );
+    const verified = sodium.crypto_sign_verify_detached(
+      new Uint8Array(Buffer.from(signed.security.signature, 'base64')),
+      new Uint8Array(Buffer.from(payload, 'utf8')),
+      new Uint8Array(Buffer.from(key.publicKey, 'base64')),
+    );
+    assert.ok(verified, 'Ed25519 signature must verify against the trusted key');
+    return signed;
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+}
+
+const seed = (kind) =>
+  JSON.parse(readFileSync(path.join(ROOT, 'releases', kind, `selfhelp-${kind}-8.0.0.json`), 'utf8'));
+
+test('assembles + signs + verifies a core 8.1.0 release seeded from 8.0.0', async () => {
+  await sodium.ready;
+  const args = parseArgs([
+    '--kind', 'core', '--version', '8.1.0', '--channel', 'test', '--min-upgrade-from', '8.0.0',
+    '--backend-image', 'ghcr.io/humdek-unibe-ch/selfhelp-backend:8.1.0', '--backend-digest', `sha256:${'a'.repeat(64)}`,
+    '--worker-image', 'ghcr.io/humdek-unibe-ch/selfhelp-worker:8.1.0', '--worker-digest', `sha256:${'b'.repeat(64)}`,
+    '--scheduler-image', 'ghcr.io/humdek-unibe-ch/selfhelp-scheduler:8.1.0', '--scheduler-digest', `sha256:${'c'.repeat(64)}`,
+    '--frontend-range', '>=8.1.0 <8.2.0', '--migration-range', 'VersionA..VersionB',
+  ]);
+  const body = assembleRelease('core', args, seed('core'));
+
+  assert.equal(body.kind, 'selfhelp-core-release');
+  assert.equal(body.id, 'selfhelp-core-8.1.0');
+  assert.equal(body.version, '8.1.0');
+  assert.equal(body.channel, 'test');
+  assert.equal(body.backend.image, 'ghcr.io/humdek-unibe-ch/selfhelp-backend:8.1.0');
+  assert.equal(body.backend.digest, `sha256:${'a'.repeat(64)}`);
+  assert.equal(body.backend.phpVersion, '8.4', 'backend phpVersion inherited from --from seed');
+  assert.ok(body.runtime, 'runtime policy block carried forward from the seed');
+  assert.equal(body.security, undefined, 'assemble never emits a security block');
+
+  signValidateVerify(body);
+});
+
+test('assembles + signs + verifies frontend/scheduler/worker releases', async () => {
+  await sodium.ready;
+  const fe = assembleRelease(
+    'frontend',
+    parseArgs([
+      '--kind', 'frontend', '--version', '8.1.0', '--channel', 'test',
+      '--image', 'ghcr.io/humdek-unibe-ch/selfhelp-frontend:8.1.0', '--digest', `sha256:${'d'.repeat(64)}`,
+      '--required-core-range', '>=8.1.0 <8.2.0', '--required-api-version', '2.1',
+    ]),
+    seed('frontend'),
+  );
+  assert.equal(fe.kind, 'selfhelp-frontend-release');
+  assert.equal(fe.backendCompatibility.requiredApiVersion, '2.1');
+  signValidateVerify(fe);
+
+  for (const kind of ['scheduler', 'worker']) {
+    const body = assembleRelease(
+      kind,
+      parseArgs([
+        '--kind', kind, '--version', '8.1.0', '--channel', 'test',
+        '--image', `ghcr.io/humdek-unibe-ch/selfhelp-${kind}:8.1.0`, '--digest', `sha256:${'e'.repeat(64)}`,
+        '--required-core-range', '>=8.1.0 <8.2.0',
+      ]),
+      seed(kind),
+    );
+    assert.equal(body.kind, `selfhelp-${kind}-release`);
+    assert.equal(body.id, `selfhelp-${kind}-8.1.0`);
+    signValidateVerify(body);
+  }
+});
+
+test('rejects an unknown kind and missing required inputs', () => {
+  assert.throws(() => assembleRelease('plugin', parseArgs(['--version', '1.0.0'])), /--kind must be one of/);
+  assert.throws(() => assembleRelease('core', parseArgs(['--kind', 'core'])), /--version is required/);
+  // No --from and no image/digest -> schema validation fails on the missing image ref.
+  assert.throws(
+    () => assembleRelease('frontend', parseArgs(['--kind', 'frontend', '--version', '8.1.0'])),
+    /failed schema validation/,
+  );
+});

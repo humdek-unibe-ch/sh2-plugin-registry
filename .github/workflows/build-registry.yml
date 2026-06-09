@@ -57,6 +57,9 @@ jobs:
                   npm ci || npm install
                   npm run validate:unified
 
+            - name: Registry script unit tests (assemble-release)
+              run: npm test
+
             - name: Guard registry trust fields
               run: node scripts/guard-trust-fields.mjs registry.json
 

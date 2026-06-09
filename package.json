@@ -13,6 +13,8 @@
         "sign": "node scripts/sign.mjs",
         "keygen": "node scripts/sign.mjs keygen",
         "build-entry": "node scripts/build-registry-entry.mjs",
+        "assemble": "node scripts/assemble-release.mjs",
+        "test": "node --test",
         "validate": "ajv validate -c ajv-formats -s registry.schema.json -d registry.json --strict=false",
         "validate:unified": "node scripts/validate-unified.mjs",
         "guard:trust": "node scripts/guard-trust-fields.mjs"

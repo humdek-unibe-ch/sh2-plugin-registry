@@ -1,0 +1,122 @@
+# SPDX-FileCopyrightText: 2026 Humdek, University of Bern
+# SPDX-License-Identifier: MPL-2.0
+#
+# Publish a SIGNED platform release (core / frontend / scheduler / worker) to the
+# official registry as a REVIEWED PULL REQUEST. This workflow is manual only and
+# never publishes by itself: it assembles the release doc, signs it with the
+# production Ed25519 key (from the repo secret), adds the registry ref, validates
+# + re-verifies signatures, and opens a PR. A human reviews the digests + the
+# signature and merges; only the merge to `main` triggers build-registry.yml to
+# republish GitHub Pages.
+#
+# Prereqs:
+#   - Images already built + pushed by sh-selfhelp_backend `docker-release.yml`
+#     (backend/worker/scheduler) and sh-selfhelp_frontend `frontend-release.yml`
+#     (frontend). Copy the printed digests into the `digests` input.
+#   - Secrets SELFHELP_PLUGIN_SIGNING_KEY (base64 64-byte Ed25519 secret) and
+#     SELFHELP_PLUGIN_SIGNING_KEY_ID configured for `stable`/`beta` releases.
+#
+# See docs/operations/publishing.md ("Publishing a platform release").
+
+name: publish-core-release
+
+on:
+  workflow_dispatch:
+    inputs:
+      kind:
+        description: "Release kind"
+        required: true
+        type: choice
+        options: [core, frontend, scheduler, worker]
+      version:
+        description: "Release version (semver), e.g. 8.1.0"
+        required: true
+        type: string
+      channel:
+        description: "Release channel"
+        required: true
+        default: stable
+        type: choice
+        options: [stable, beta, nightly, test]
+      seed_from:
+        description: "Optional release file to seed unchanged fields, e.g. releases/core/selfhelp-core-8.0.0.json"
+        required: false
+        type: string
+      digests:
+        description: 'JSON digests. core: {"backend":"sha256:..","worker":"sha256:..","scheduler":"sha256:.."} ; others: {"image":"sha256:.."}'
+        required: true
+        type: string
+      metadata:
+        description: 'JSON. core: {"minUpgradeFrom","pluginApi","frontendRange","migrationRange","destructive","php"} ; services: {"requiredCoreRange","requiredApiVersion"}'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - run: npm ci || npm install
+
+      - name: Refuse to dev-sign a non-test release
+        if: ${{ inputs.channel != 'test' && secrets.SELFHELP_PLUGIN_SIGNING_KEY == '' }}
+        run: |
+          echo "::error::channel '${{ inputs.channel }}' requires the production signing key. Set SELFHELP_PLUGIN_SIGNING_KEY / SELFHELP_PLUGIN_SIGNING_KEY_ID secrets, or use channel 'test'."
+          exit 1
+
+      - name: Assemble + sign + add registry ref
+        env:
+          PUBLISH_KIND: ${{ inputs.kind }}
+          PUBLISH_VERSION: ${{ inputs.version }}
+          PUBLISH_CHANNEL: ${{ inputs.channel }}
+          PUBLISH_SEED_FROM: ${{ inputs.seed_from }}
+          PUBLISH_DIGESTS: ${{ inputs.digests }}
+          PUBLISH_METADATA: ${{ inputs.metadata }}
+          PUBLISH_IMAGE_OWNER: ${{ github.repository_owner }}
+          SELFHELP_PLUGIN_SIGNING_KEY: ${{ secrets.SELFHELP_PLUGIN_SIGNING_KEY }}
+          SELFHELP_PLUGIN_SIGNING_KEY_ID: ${{ secrets.SELFHELP_PLUGIN_SIGNING_KEY_ID }}
+        run: node scripts/publish-release.mjs
+
+      - name: Validate registry + re-verify signatures
+        run: |
+          npm run validate:unified
+          npm run guard:trust
+
+      - name: Summary
+        run: |
+          {
+            echo "### Assembled ${{ inputs.kind }} ${{ inputs.version }} (${{ inputs.channel }})"
+            echo ""
+            echo "- release: \`releases/${{ inputs.kind }}/selfhelp-${{ inputs.kind }}-${{ inputs.version }}.json\`"
+            echo "- registry ref added to \`registry.json\`"
+            echo "- signature re-verified by \`validate:unified\`"
+            echo ""
+            echo "Review the digests + signature in the PR, then merge to publish."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Open reviewed pull request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: publish/${{ inputs.kind }}-${{ inputs.version }}
+          title: "Publish ${{ inputs.kind }} ${{ inputs.version }} (${{ inputs.channel }})"
+          body: |
+            Automated assembly of a signed **${{ inputs.kind }} ${{ inputs.version }}** release on the `${{ inputs.channel }}` channel.
+
+            Reviewer checklist before merge:
+            - [ ] The image digests match the ones printed by the image build pipeline.
+            - [ ] `validate:unified` is green (schema + Ed25519 signature re-verified).
+            - [ ] `guard:trust` is green (no placeholder/dev trust fields for official/reviewed).
+            - [ ] The `channel` is correct (`stable` only with the production key).
+
+            Merging to `main` triggers `build-registry.yml`, which republishes GitHub Pages. This PR does **not** auto-merge.
+          labels: release
+          delete-branch: true
