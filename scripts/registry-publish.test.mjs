@@ -38,8 +38,21 @@ test('addReleaseRef creates the array when missing and validates input', () => {
   const registry = {};
   addReleaseRef(registry, 'scheduler', { id: 's', version: '8.1.0', channel: 'test', releaseUrl: 'u' });
   assert.equal(registry.scheduler.length, 1);
-  assert.throws(() => addReleaseRef(registry, 'plugins', { id: 'x', version: '1', channel: 'stable', releaseUrl: 'u' }), /kind must be one of/);
+  assert.throws(() => addReleaseRef(registry, 'nope', { id: 'x', version: '1', channel: 'stable', releaseUrl: 'u' }), /kind must be one of/);
   assert.throws(() => addReleaseRef(registry, 'core', { id: 'x', version: '1', channel: 'stable' }), /releaseUrl is required/);
+});
+
+test('addReleaseRef keeps plugins multi-version (matches by id + version)', () => {
+  const registry = { plugins: [] };
+  addReleaseRef(registry, 'plugins', { id: 'sh2-shp-survey-js', version: '0.1.0', channel: 'stable', releaseUrl: 'releases/plugins/sh2-shp-survey-js-0.1.0.json' });
+  addReleaseRef(registry, 'plugins', { id: 'sh2-shp-survey-js', version: '0.2.0', channel: 'stable', releaseUrl: 'releases/plugins/sh2-shp-survey-js-0.2.0.json' });
+  // Two versions of the SAME plugin id coexist (multi-version registry).
+  assert.equal(registry.plugins.length, 2);
+
+  // Re-publishing the same id+version replaces in place (no duplicate).
+  addReleaseRef(registry, 'plugins', { id: 'sh2-shp-survey-js', version: '0.2.0', channel: 'beta', releaseUrl: 'releases/plugins/sh2-shp-survey-js-0.2.0.json' });
+  assert.equal(registry.plugins.length, 2);
+  assert.equal(registry.plugins[1].channel, 'beta');
 });
 
 test('buildPublishArgs + assembleRelease produce a schema-valid core release (dry run)', () => {

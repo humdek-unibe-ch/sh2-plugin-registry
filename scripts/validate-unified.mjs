@@ -38,9 +38,16 @@ function loadJson(rel) {
   return JSON.parse(readFileSync(path.join(root, rel), 'utf8'));
 }
 
+// Compile each schema at most once: the multi-version plugins[] reuses
+// plugin-release.schema.json for every version, and ajv refuses to register the
+// same $id twice.
+const compiledByFile = new Map();
 function validate(schemaFile, dataFile, data) {
-  const schema = loadJson(schemaFile);
-  const fn = ajv.compile(schema);
+  let fn = compiledByFile.get(schemaFile);
+  if (!fn) {
+    fn = ajv.compile(loadJson(schemaFile));
+    compiledByFile.set(schemaFile, fn);
+  }
   if (!fn(data ?? loadJson(dataFile))) {
     for (const e of fn.errors ?? []) errors.push(`${dataFile}: ${e.instancePath || '(root)'} ${e.message}`);
     return false;
@@ -116,6 +123,18 @@ for (const ref of registry.scheduler ?? []) {
 for (const ref of registry.worker ?? []) {
   const release = loadJson(ref.releaseUrl);
   if (validate('worker-release.schema.json', ref.releaseUrl, release)) verifyRelease(release, ref.releaseUrl, trustedKeys);
+}
+// Plugin releases use the SAME release-ref -> signed-document contract as the
+// platform components, so the backend/CMS installer consumes one registry.json.
+// A plugin with several versions appears as several refs; each is validated
+// against plugin-release.schema.json and Ed25519-verified here.
+for (const ref of registry.plugins ?? []) {
+  const release = loadJson(ref.releaseUrl);
+  if (ref.id !== release.id || ref.version !== release.version) {
+    errors.push(`${ref.releaseUrl}: index ref ${ref.id}@${ref.version} points at a release document for ${release.id}@${release.version}`);
+    continue;
+  }
+  if (validate('plugin-release.schema.json', ref.releaseUrl, release)) verifyRelease(release, ref.releaseUrl, trustedKeys);
 }
 
 if (errors.length > 0) {

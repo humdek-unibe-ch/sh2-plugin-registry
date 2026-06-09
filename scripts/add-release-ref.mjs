@@ -23,11 +23,16 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const VALID_KINDS = ['core', 'frontend', 'scheduler', 'worker'];
+const VALID_KINDS = ['core', 'frontend', 'scheduler', 'worker', 'plugins'];
 
 /**
- * Insert or replace `ref` in the `registry[kind]` array (matching by id).
- * Mutates and returns the registry object.
+ * Insert or replace `ref` in the `registry[kind]` array.
+ *
+ * Platform kinds (core/frontend/scheduler/worker) carry the version IN the id
+ * (`selfhelp-core-8.1.0`) and publish one ref per version, so they match by id.
+ * `plugins` is MULTI-VERSION: a plugin id (`sh2-shp-survey-js`) appears once per
+ * published version, so it matches by id + version (a new version is appended,
+ * an existing id+version is replaced in place). Mutates and returns the registry.
  */
 export function addReleaseRef(registry, kind, ref) {
   if (!VALID_KINDS.includes(kind)) throw new Error(`kind must be one of: ${VALID_KINDS.join(', ')}`);
@@ -38,7 +43,9 @@ export function addReleaseRef(registry, kind, ref) {
   const arr = registry[kind];
   const next = { id: ref.id, version: ref.version, channel: ref.channel, releaseUrl: ref.releaseUrl };
   if (ref.blocked !== undefined) next.blocked = ref.blocked;
-  const idx = arr.findIndex((r) => r.id === ref.id);
+  const idx = kind === 'plugins'
+    ? arr.findIndex((r) => r.id === ref.id && r.version === ref.version)
+    : arr.findIndex((r) => r.id === ref.id);
   if (idx >= 0) arr[idx] = next;
   else arr.push(next);
   return registry;

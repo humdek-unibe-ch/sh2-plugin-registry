@@ -6,11 +6,16 @@ Applies to: `sh2-plugin-registry`.
 Last verified: 2026-06-09.
 Source of truth: `scripts/sign.mjs`, `scripts/sign-release.mjs`, `scripts/validate-unified.mjs`, `scripts/guard-trust-fields.mjs`, `.github/workflows/publish-core-release.yml`, and the host `PluginSignatureVerifier`.
 
-The same Ed25519 trust model covers both kinds of registry content: **plugin
-entries** (signed with `sign.mjs`, below) and **platform releases** —
-core/frontend/scheduler/worker — signed with `sign-release.mjs`
-(see [Signing platform releases](#signing-platform-releases)). Both verify against
-the public keys in `keys/trusted-keys.json`.
+The same Ed25519 trust model covers every kind of registry content. There are two
+distinct signing surfaces, both verified against the public keys in
+`keys/trusted-keys.json`:
+
+- the **`.shplugin` archive payload**, signed with `sign.mjs` (the canonical
+  plugin payload, byte-identical to the host's `SignedPayloadBuilder`) — see
+  [How signing works](#how-signing-works);
+- the **release documents** under `releases/**` — plugins AND
+  core/frontend/scheduler/worker — signed with `sign-release.mjs`
+  (see [Signing release documents](#signing-release-documents)).
 
 ## Generating an Ed25519 keypair
 
@@ -37,23 +42,27 @@ Never commit a private key or paste it into docs. Store keys only in CI secrets 
 - `sign --payload <path>` - signs the canonical payload with an Ed25519 private key and writes `{keyId, signature, signedPayload}`.
 - `keygen` - generates a fresh keypair for bootstrapping.
 
-`scripts/build-registry-entry.mjs` chains `build-payload` and `sign` to produce a complete `pluginEntry`.
+`build-shplugin.mjs` (in each plugin repo) uses `sign.mjs` to sign the `.shplugin`
+archive's payload. The registry-side **plugin release document** is a separate
+artifact, assembled by `scripts/build-plugin-release.mjs` and signed by
+`scripts/sign-release.mjs` (see [Signing release documents](#signing-release-documents)).
 
 ## Trust-field guard
 
-`scripts/guard-trust-fields.mjs` (run by the `build-registry` workflow and via `npm run guard:trust`) rejects any entry that claims `trustLevel: "official"` or `trustLevel: "reviewed"` while still carrying placeholder, empty, or `dev` signing fields, or the all-zero checksum. Specifically, for `official`/`reviewed` entries it requires:
+`scripts/guard-trust-fields.mjs` (run by the `build-registry` workflow and via `npm run guard:trust`) follows every `plugins[]` ref, loads its release document, and rejects any `official` release that still carries placeholder, empty, or `dev` signing fields, or the all-zero archive checksum. Specifically, for an `official` plugin release it requires:
 
-- `keyId` is not `dev` and not empty.
-- `signature`, `signedPayload`, and `keyId` contain no `PLACEHOLDER` substring.
-- `signature` and `signedPayload` are non-empty.
-- `checksums.frontendEsm` is not the all-zero placeholder.
+- `security.keyId` is not `dev` and not empty.
+- `security.signature` and `security.keyId` contain no `PLACEHOLDER` substring.
+- `security.signature` is non-empty.
+- `artifacts.sha256` is not the all-zero placeholder.
 
-Until the publishing pipeline is wired with a real production Ed25519 key, every entry must declare `trustLevel: "untrusted"`. Hosts running with `SELFHELP_PLUGIN_REQUIRE_SIGNATURE=true` (the default) refuse to install untrusted entries, which is the intended state during this bootstrap phase.
+Until the publishing pipeline is wired with a real production Ed25519 key, a plugin release should declare `official: false` (manifest `trustLevel: "untrusted"`). Hosts running with `SELFHELP_PLUGIN_REQUIRE_SIGNATURE=true` (the default) refuse to install untrusted releases, which is the intended state during this bootstrap phase.
 
-## Signing platform releases
+## Signing release documents
 
-Core, frontend, scheduler, and worker releases are signed documents under
-`releases/<kind>/<id>.json`. They are signed with `scripts/sign-release.mjs`:
+Plugin, core, frontend, scheduler, and worker releases are signed documents under
+`releases/<kind>/...` (plugins live at `releases/plugins/<id>-<version>.json`).
+They are signed with `scripts/sign-release.mjs`:
 
 ```bash
 node scripts/sign-release.mjs --input releases/<kind>/<id>.json \

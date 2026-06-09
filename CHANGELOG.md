@@ -14,6 +14,36 @@ serves — those are versioned in their own repositories and pinned per entry.
 
 ## [Unreleased]
 
+### Changed
+
+- **Plugins are now multi-version release refs** (BREAKING, pre-release). `plugins[]`
+  in `registry.json` is no longer an array of inline `pluginEntry` objects; it is
+  now an array of release refs (`{id, version, channel, releaseUrl}`), the SAME
+  contract as `core`/`frontend`/`scheduler`/`worker`. A plugin appears as **one
+  ref per published version**, each pointing at a standalone signed
+  `releases/plugins/<id>-<version>.json` document (schema:
+  `plugin-release.schema.json`). This lets a host resolve the **newest version
+  compatible with itself** instead of only the latest overall, and unifies the
+  whole registry on one "release ref → signed document" model consumed by both
+  installers (Manager = platform, CMS = plugins).
+  - New schema `plugin-release.schema.json` (mirrors `@selfhelp/shared`
+    `PluginRelease` + the backend `config/schemas/registry/plugin-release.schema.json`);
+    `registry.schema.json` `plugins[]` now references `releaseRef` and the inline
+    `pluginEntry` definition was removed.
+  - `scripts/validate-unified.mjs` now validates + Ed25519-verifies every plugin
+    release; `scripts/guard-trust-fields.mjs` now guards the plugin release
+    **documents** (rejecting `dev`/placeholder signing on an `official` release);
+    `scripts/add-release-ref.mjs` accepts the `plugins` kind (multi-version,
+    matched by id+version).
+  - New `scripts/build-plugin-release.mjs` assembles an unsigned plugin-release
+    document from a `plugin.json` manifest; it replaces the inline
+    `scripts/build-registry-entry.mjs` (removed) and the
+    `selfhelp-plugin-build-registry-entry` bin (renamed to
+    `selfhelp-plugin-build-release`).
+  - Migrated `sh2-shp-survey-js` to two signed release refs (`0.1.0` compatible
+    with core `>=0.1.0 <0.2.0`; `0.2.0` requiring `>=0.2.0 <0.3.0`), replacing the
+    stale `0.2.7`–`0.2.20` inline entries/manifests.
+
 ### Added
 
 - **Unified registry**: in addition to the plugin catalogue, `registry.json` now
@@ -21,8 +51,8 @@ serves — those are versioned in their own repositories and pinned per entry.
   metadata consumed by the SelfHelp Manager (`sh-manager`). There is no second
   registry.
   - New top-level fields: `requiresManager`, `core[]`, `frontend[]`,
-    `scheduler[]`, `worker[]`, `trustedKeysUrl`, `advisoriesUrl` (all additive;
-    the existing `plugins[]` contract is unchanged).
+    `scheduler[]`, `worker[]`, `trustedKeysUrl`, `advisoriesUrl`. Plugins use the
+    same release-ref contract (see **Changed** above).
   - New signed release documents under `releases/{core,frontend,scheduler,worker}/<id>.json`,
     each carrying a `security` block `{signature, keyId, signedPayloadSha256}`.
   - New schemas: `core-release.schema.json`, `frontend-release.schema.json`,
