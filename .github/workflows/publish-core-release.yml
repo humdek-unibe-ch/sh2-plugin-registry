@@ -29,7 +29,7 @@ on:
         type: choice
         options: [core, frontend, scheduler, worker]
       version:
-        description: "Release version (semver), e.g. 8.1.0"
+        description: "Release version (semver), e.g. 0.2.0"
         required: true
         type: string
       channel:
@@ -39,7 +39,7 @@ on:
         type: choice
         options: [stable, beta, nightly, test]
       seed_from:
-        description: "Optional release file to seed unchanged fields, e.g. releases/core/selfhelp-core-8.0.0.json"
+        description: "Optional release file to seed unchanged fields, e.g. releases/core/selfhelp-core-0.1.0.json"
         required: false
         type: string
       digests:

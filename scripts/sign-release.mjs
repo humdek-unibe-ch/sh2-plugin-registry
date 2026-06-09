@@ -20,12 +20,12 @@ SPDX-License-Identifier: MPL-2.0
  *   (default) the DETERMINISTIC DEV key derived from the fixed seed
  *             'selfhelp-dev-registry-signing-key-v1', keyId
  *             'selfhelp-official-2026'. This is the same dev key the committed
- *             8.0.0 core/frontend releases + the manager fixtures use, so the
+ *             0.1.0 core/frontend releases + the manager fixtures use, so the
  *             signed-offline test/validation path works end-to-end. It is NOT a
  *             production key.
  *
  * Usage:
- *   node scripts/sign-release.mjs --input releases/scheduler/selfhelp-scheduler-8.0.0.json
+ *   node scripts/sign-release.mjs --input releases/scheduler/selfhelp-scheduler-0.1.0.json
  *   node scripts/sign-release.mjs --input <file> --out <file>
  */
 import { readFileSync, writeFileSync } from 'node:fs';

@@ -50,14 +50,14 @@ SPDX-License-Identifier: MPL-2.0
  *   --required-core-range <range>
  *   --required-api-version <version>         (frontend: required; services: optional)
  *
- * Example (a 8.1.0 core that mirrors 8.0.0 but with new images + migrations):
- *   node scripts/assemble-release.mjs --kind core --from releases/core/selfhelp-core-8.0.0.json \
- *     --version 8.1.0 --channel stable --min-upgrade-from 8.0.0 \
- *     --backend-image ghcr.io/humdek-unibe-ch/selfhelp-backend:8.1.0 --backend-digest sha256:... \
- *     --worker-image ghcr.io/humdek-unibe-ch/selfhelp-worker:8.1.0 --worker-digest sha256:... \
- *     --scheduler-image ghcr.io/humdek-unibe-ch/selfhelp-scheduler:8.1.0 --scheduler-digest sha256:... \
- *     --frontend-range ">=8.1.0 <8.2.0" --migration-range "Version...A..Version...B" \
- *     --out releases/core/selfhelp-core-8.1.0.json
+ * Example (a 0.2.0 core that mirrors 0.1.0 but with new images + migrations):
+ *   node scripts/assemble-release.mjs --kind core --from releases/core/selfhelp-core-0.1.0.json \
+ *     --version 0.2.0 --channel stable --min-upgrade-from 0.1.0 \
+ *     --backend-image ghcr.io/humdek-unibe-ch/selfhelp-backend:0.2.0 --backend-digest sha256:... \
+ *     --worker-image ghcr.io/humdek-unibe-ch/selfhelp-worker:0.2.0 --worker-digest sha256:... \
+ *     --scheduler-image ghcr.io/humdek-unibe-ch/selfhelp-scheduler:0.2.0 --scheduler-digest sha256:... \
+ *     --frontend-range ">=0.2.0 <0.3.0" --migration-range "Version...A..Version...B" \
+ *     --out releases/core/selfhelp-core-0.2.0.json
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';

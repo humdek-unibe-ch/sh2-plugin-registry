@@ -88,24 +88,24 @@ function signValidateVerify(body) {
 }
 
 const seed = (kind) =>
-  JSON.parse(readFileSync(path.join(ROOT, 'releases', kind, `selfhelp-${kind}-8.0.0.json`), 'utf8'));
+  JSON.parse(readFileSync(path.join(ROOT, 'releases', kind, `selfhelp-${kind}-0.1.0.json`), 'utf8'));
 
-test('assembles + signs + verifies a core 8.1.0 release seeded from 8.0.0', async () => {
+test('assembles + signs + verifies a core 0.2.0 release seeded from 0.1.0', async () => {
   await sodium.ready;
   const args = parseArgs([
-    '--kind', 'core', '--version', '8.1.0', '--channel', 'test', '--min-upgrade-from', '8.0.0',
-    '--backend-image', 'ghcr.io/humdek-unibe-ch/selfhelp-backend:8.1.0', '--backend-digest', `sha256:${'a'.repeat(64)}`,
-    '--worker-image', 'ghcr.io/humdek-unibe-ch/selfhelp-worker:8.1.0', '--worker-digest', `sha256:${'b'.repeat(64)}`,
-    '--scheduler-image', 'ghcr.io/humdek-unibe-ch/selfhelp-scheduler:8.1.0', '--scheduler-digest', `sha256:${'c'.repeat(64)}`,
-    '--frontend-range', '>=8.1.0 <8.2.0', '--migration-range', 'VersionA..VersionB',
+    '--kind', 'core', '--version', '0.2.0', '--channel', 'test', '--min-upgrade-from', '0.1.0',
+    '--backend-image', 'ghcr.io/humdek-unibe-ch/selfhelp-backend:0.2.0', '--backend-digest', `sha256:${'a'.repeat(64)}`,
+    '--worker-image', 'ghcr.io/humdek-unibe-ch/selfhelp-worker:0.2.0', '--worker-digest', `sha256:${'b'.repeat(64)}`,
+    '--scheduler-image', 'ghcr.io/humdek-unibe-ch/selfhelp-scheduler:0.2.0', '--scheduler-digest', `sha256:${'c'.repeat(64)}`,
+    '--frontend-range', '>=0.2.0 <0.3.0', '--migration-range', 'VersionA..VersionB',
   ]);
   const body = assembleRelease('core', args, seed('core'));
 
   assert.equal(body.kind, 'selfhelp-core-release');
-  assert.equal(body.id, 'selfhelp-core-8.1.0');
-  assert.equal(body.version, '8.1.0');
+  assert.equal(body.id, 'selfhelp-core-0.2.0');
+  assert.equal(body.version, '0.2.0');
   assert.equal(body.channel, 'test');
-  assert.equal(body.backend.image, 'ghcr.io/humdek-unibe-ch/selfhelp-backend:8.1.0');
+  assert.equal(body.backend.image, 'ghcr.io/humdek-unibe-ch/selfhelp-backend:0.2.0');
   assert.equal(body.backend.digest, `sha256:${'a'.repeat(64)}`);
   assert.equal(body.backend.phpVersion, '8.4', 'backend phpVersion inherited from --from seed');
   assert.ok(body.runtime, 'runtime policy block carried forward from the seed');
@@ -119,28 +119,28 @@ test('assembles + signs + verifies frontend/scheduler/worker releases', async ()
   const fe = assembleRelease(
     'frontend',
     parseArgs([
-      '--kind', 'frontend', '--version', '8.1.0', '--channel', 'test',
-      '--image', 'ghcr.io/humdek-unibe-ch/selfhelp-frontend:8.1.0', '--digest', `sha256:${'d'.repeat(64)}`,
-      '--required-core-range', '>=8.1.0 <8.2.0', '--required-api-version', '2.1',
+      '--kind', 'frontend', '--version', '0.2.0', '--channel', 'test',
+      '--image', 'ghcr.io/humdek-unibe-ch/selfhelp-frontend:0.2.0', '--digest', `sha256:${'d'.repeat(64)}`,
+      '--required-core-range', '>=0.2.0 <0.3.0', '--required-api-version', '0.1.0',
     ]),
     seed('frontend'),
   );
   assert.equal(fe.kind, 'selfhelp-frontend-release');
-  assert.equal(fe.backendCompatibility.requiredApiVersion, '2.1');
+  assert.equal(fe.backendCompatibility.requiredApiVersion, '0.1.0');
   signValidateVerify(fe);
 
   for (const kind of ['scheduler', 'worker']) {
     const body = assembleRelease(
       kind,
       parseArgs([
-        '--kind', kind, '--version', '8.1.0', '--channel', 'test',
-        '--image', `ghcr.io/humdek-unibe-ch/selfhelp-${kind}:8.1.0`, '--digest', `sha256:${'e'.repeat(64)}`,
-        '--required-core-range', '>=8.1.0 <8.2.0',
+        '--kind', kind, '--version', '0.2.0', '--channel', 'test',
+        '--image', `ghcr.io/humdek-unibe-ch/selfhelp-${kind}:0.2.0`, '--digest', `sha256:${'e'.repeat(64)}`,
+        '--required-core-range', '>=0.2.0 <0.3.0',
       ]),
       seed(kind),
     );
     assert.equal(body.kind, `selfhelp-${kind}-release`);
-    assert.equal(body.id, `selfhelp-${kind}-8.1.0`);
+    assert.equal(body.id, `selfhelp-${kind}-0.2.0`);
     signValidateVerify(body);
   }
 });
@@ -150,7 +150,7 @@ test('rejects an unknown kind and missing required inputs', () => {
   assert.throws(() => assembleRelease('core', parseArgs(['--kind', 'core'])), /--version is required/);
   // No --from and no image/digest -> schema validation fails on the missing image ref.
   assert.throws(
-    () => assembleRelease('frontend', parseArgs(['--kind', 'frontend', '--version', '8.1.0'])),
+    () => assembleRelease('frontend', parseArgs(['--kind', 'frontend', '--version', '0.2.0'])),
     /failed schema validation/,
   );
 });

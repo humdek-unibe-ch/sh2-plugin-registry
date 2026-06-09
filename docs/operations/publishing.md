@@ -154,11 +154,12 @@ make the release reproducible.
 GitHub → **Actions → publish-core-release → Run workflow**, then fill the inputs:
 
 - `kind` — `core` / `frontend` / `scheduler` / `worker`.
-- `version` — the semver being published, e.g. `8.1.0`.
+- `version` — the semver being published, e.g. `0.2.0` (pre-release `0.x`: every
+  minor is breaking).
 - `channel` — `stable` for a real public release (`beta`/`nightly` as needed;
   `test` is for rehearsal only, see below).
 - `seed_from` *(optional)* — an existing release file to copy unchanged fields
-  from, e.g. `releases/core/selfhelp-core-8.0.0.json`.
+  from, e.g. `releases/core/selfhelp-core-0.1.0.json`.
 - `digests` — JSON of the digests from step 1. For `core`:
   `{"backend":"sha256:…","worker":"sha256:…","scheduler":"sha256:…"}`; for the
   others: `{"image":"sha256:…"}`.

@@ -13,8 +13,8 @@ SPDX-License-Identifier: MPL-2.0
  * `scheduler` / `worker`). The array is created if missing.
  *
  * Usage:
- *   node scripts/add-release-ref.mjs --kind core --id selfhelp-core-8.1.0 \
- *     --version 8.1.0 --channel stable --release-url releases/core/selfhelp-core-8.1.0.json
+ *   node scripts/add-release-ref.mjs --kind core --id selfhelp-core-0.2.0 \
+ *     --version 0.2.0 --channel stable --release-url releases/core/selfhelp-core-0.2.0.json
  *   node scripts/add-release-ref.mjs ... --registry registry.json   # default registry.json
  */
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -29,7 +29,7 @@ const VALID_KINDS = ['core', 'frontend', 'scheduler', 'worker', 'plugins'];
  * Insert or replace `ref` in the `registry[kind]` array.
  *
  * Platform kinds (core/frontend/scheduler/worker) carry the version IN the id
- * (`selfhelp-core-8.1.0`) and publish one ref per version, so they match by id.
+ * (`selfhelp-core-0.2.0`) and publish one ref per version, so they match by id.
  * `plugins` is MULTI-VERSION: a plugin id (`sh2-shp-survey-js`) appears once per
  * published version, so it matches by id + version (a new version is appended,
  * an existing id+version is replaced in place). Mutates and returns the registry.
