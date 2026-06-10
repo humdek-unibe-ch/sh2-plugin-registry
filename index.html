@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>SelfHelp Plugin Registry</title>
+  <title>SelfHelp Registry</title>
   <style>
     :root {
       --bg: #f4efe4;
@@ -14,6 +14,8 @@
       --accent: #1d4ed8;
       --accent-soft: #dbeafe;
       --good: #0f766e;
+      --bad: #b91c1c;
+      --bad-soft: #fee2e2;
     }
 
     * { box-sizing: border-box; }
@@ -66,10 +68,19 @@
       padding: 8px 12px;
       background: #fff;
     }
+    .section-title {
+      margin: 36px 0 0;
+      font-size: 1.6rem;
+    }
+    .section-sub {
+      margin: 6px 0 0;
+      color: var(--muted);
+      line-height: 1.6;
+    }
     .grid {
       display: grid;
       gap: 18px;
-      margin-top: 28px;
+      margin-top: 18px;
     }
     .card {
       border: 1px solid var(--line);
@@ -88,6 +99,11 @@
     .card h2 {
       margin: 0;
       font-size: 1.45rem;
+    }
+    .card-sub {
+      margin: 2px 0 0;
+      color: var(--muted);
+      font: 0.85rem/1.4 system-ui, sans-serif;
     }
     .version {
       white-space: nowrap;
@@ -115,6 +131,45 @@
       background: #fff;
       font: 600 0.82rem/1.1 system-ui, sans-serif;
       color: var(--good);
+    }
+    .tag.blocked {
+      color: var(--bad);
+      background: var(--bad-soft);
+      border-color: var(--bad);
+    }
+    .reqs {
+      margin: 0 0 14px;
+      padding: 12px 14px;
+      border: 1px dashed var(--line);
+      border-radius: 14px;
+      background: #fff;
+    }
+    .reqs h3 {
+      margin: 0 0 8px;
+      font: 700 0.82rem/1.1 system-ui, sans-serif;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .reqs ul {
+      margin: 0;
+      padding: 0 0 0 18px;
+      color: var(--ink);
+      font-size: 0.95rem;
+      line-height: 1.7;
+    }
+    .reqs code, .images code {
+      font: 0.85rem/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      background: #f6f1e4;
+      border-radius: 6px;
+      padding: 1px 6px;
+      word-break: break-all;
+    }
+    .images {
+      margin: 0 0 14px;
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.9;
     }
     .links {
       display: flex;
@@ -144,11 +199,12 @@
 <body>
   <main class="wrap">
     <section class="hero">
-      <h1>SelfHelp Plugin Registry</h1>
+      <h1>SelfHelp Registry</h1>
       <p class="lede">
-        Public catalog of plugins advertised to SelfHelp hosts. Hosts fetch
-        <code>registry.json</code> from this site and then resolve the linked
-        manifests for installation.
+        The official catalog of SelfHelp <strong>platform releases</strong> (backend, frontend,
+        worker, scheduler Docker images consumed by the SelfHelp Manager) and
+        <strong>plugins</strong> (advertised to SelfHelp hosts). Everything resolves from
+        <code>registry.json</code>; each version links a signed release document.
       </p>
       <div class="meta">
         <span class="pill">Registry file: <a href="./registry.json">registry.json</a></span>
@@ -157,14 +213,30 @@
       </div>
     </section>
 
+    <h2 class="section-title">Platform releases</h2>
+    <p class="section-sub">
+      Signed Docker image releases installed and updated by the SelfHelp Manager.
+      Digests below are the exact images a manager verifies before pulling.
+    </p>
+    <section id="platform-list" class="grid" aria-live="polite"></section>
+    <section id="platform-empty" class="empty" hidden>No platform releases are currently published.</section>
+
+    <h2 class="section-title">Plugins</h2>
+    <p class="section-sub">
+      Installable CMS plugins. Each version states the SelfHelp core and plugin-API
+      ranges it requires; hosts enforce these during install and core updates.
+    </p>
     <section id="plugin-list" class="grid" aria-live="polite"></section>
-    <section id="empty" class="empty" hidden>No plugins are currently published.</section>
+    <section id="plugin-empty" class="empty" hidden>No plugins are currently published.</section>
+
     <section id="error" class="error" hidden>Failed to load registry.json.</section>
   </main>
 
   <script>
-    const list = document.getElementById('plugin-list');
-    const empty = document.getElementById('empty');
+    const platformList = document.getElementById('platform-list');
+    const platformEmpty = document.getElementById('platform-empty');
+    const pluginList = document.getElementById('plugin-list');
+    const pluginEmpty = document.getElementById('plugin-empty');
     const error = document.getElementById('error');
     const publishedAt = document.getElementById('published-at');
 
@@ -177,65 +249,185 @@
         .replace(/'/g, '&#39;');
     }
 
-    function manifestHref(entry) {
-      const manifestUrl = entry.manifestUrl;
-      if (!manifestUrl) {
-        return null;
-      }
-      try {
-        return new URL(manifestUrl, window.location.href).toString();
-      } catch (_) {
-        return manifestUrl;
-      }
+    function absUrl(url) {
+      if (!url) return null;
+      try { return new URL(url, window.location.href).toString(); } catch (_) { return url; }
     }
+
+    /** Fetch a linked JSON doc; resolve null on any failure (cards degrade). */
+    function fetchJson(url) {
+      return fetch(url, { cache: 'no-store' })
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null);
+    }
+
+    function tagsHtml(entry, extra) {
+      const tags = [
+        entry.channel ? '<span class="tag">' + esc(entry.channel) + '</span>' : '',
+        entry.blocked ? '<span class="tag blocked">blocked by advisory</span>' : '',
+      ].concat(extra || []);
+      return tags.filter(Boolean).join('');
+    }
+
+    function reqsHtml(items) {
+      const lis = items.filter(Boolean).map((i) => '<li>' + i + '</li>').join('');
+      if (!lis) return '';
+      return '<div class="reqs"><h3>Requirements</h3><ul>' + lis + '</ul></div>';
+    }
+
+    function shortDigest(digest) {
+      if (!digest) return '';
+      const hex = String(digest).replace(/^sha256:/, '');
+      return 'sha256:' + hex.slice(0, 12) + '…';
+    }
+
+    function imageLine(label, ref) {
+      if (!ref || !ref.image) return '';
+      return esc(label) + ': <code>' + esc(ref.image) + '</code> <code title="' + esc(ref.digest || '') + '">' + esc(shortDigest(ref.digest)) + '</code>';
+    }
+
+    // --- Platform cards (core / frontend / scheduler / worker) --------------
+
+    function coreCard(ref, doc) {
+      const reqs = doc ? reqsHtml([
+        doc.frontendCompatibility && doc.frontendCompatibility.requiredFrontendRange
+          ? 'Frontend <code>' + esc(doc.frontendCompatibility.requiredFrontendRange) + '</code>' : '',
+        doc.pluginApiVersion ? 'Plugin API <code>' + esc(doc.pluginApiVersion) + '</code>' : '',
+        doc.minimumDirectUpgradeFrom ? 'Direct upgrade from <code>&gt;= ' + esc(doc.minimumDirectUpgradeFrom) + '</code>' : '',
+        doc.runtime && doc.runtime.mysql ? 'MySQL <code>' + esc(doc.runtime.mysql.supportedVersions) + '</code> (recommended <code>' + esc(doc.runtime.mysql.recommendedVersion) + '</code>)' : '',
+        doc.runtime && doc.runtime.redis ? 'Redis <code>' + esc(doc.runtime.redis.supportedVersions) + '</code>' : '',
+        doc.runtime && doc.runtime.mercure ? 'Mercure <code>' + esc(doc.runtime.mercure.supportedVersions) + '</code>' : '',
+        doc.backend && doc.backend.phpVersion ? 'PHP <code>' + esc(doc.backend.phpVersion) + '</code> (inside the image)' : '',
+      ]) : '';
+      const images = doc ? '<p class="images">' + [
+        imageLine('backend', doc.backend),
+        imageLine('worker', doc.worker),
+        imageLine('scheduler', doc.scheduler),
+      ].filter(Boolean).join('<br>') + '</p>' : '';
+      const db = doc && doc.database ? '<p class="desc">Database migrations: <code>' + esc(doc.database.migrationRange) + '</code>'
+        + (doc.database.destructive ? ' — <strong>destructive</strong> (backup required, manual confirmation)' : ' — non-destructive')
+        + (doc.database.requiresBackup ? '; backup before updating.' : '.') + '</p>' : '';
+      return card({
+        title: 'SelfHelp Core',
+        sub: 'backend + worker + scheduler images (one release, three images)',
+        ref,
+        body: (doc ? db : noDetail()) + (images || '') + reqs,
+      });
+    }
+
+    function frontendCard(ref, doc) {
+      const reqs = doc && doc.backendCompatibility ? reqsHtml([
+        doc.backendCompatibility.requiredCoreRange ? 'SelfHelp core <code>' + esc(doc.backendCompatibility.requiredCoreRange) + '</code>' : '',
+        doc.backendCompatibility.requiredApiVersion ? 'API version <code>' + esc(doc.backendCompatibility.requiredApiVersion) + '</code>' : '',
+      ]) : '';
+      const images = doc && doc.image ? '<p class="images">' + imageLine('frontend', doc) + '</p>' : '';
+      const built = doc && doc.builtFrom && doc.builtFrom.sharedPackageVersion
+        ? '<p class="desc">Built with <code>@selfhelp/shared ' + esc(doc.builtFrom.sharedPackageVersion) + '</code>.</p>' : '';
+      return card({
+        title: 'SelfHelp Frontend',
+        sub: 'Next.js standalone image served behind the manager\u2019s proxy',
+        ref,
+        body: (doc ? built : noDetail()) + (images || '') + reqs,
+      });
+    }
+
+    function simplePlatformCard(title, sub, ref, doc) {
+      const images = doc && doc.image ? '<p class="images">' + imageLine(title.toLowerCase(), doc) + '</p>' : '';
+      return card({ title, sub, ref, body: (doc ? '' : noDetail()) + images });
+    }
+
+    function noDetail() {
+      return '<p class="desc">Release details could not be loaded; see the linked release document.</p>';
+    }
+
+    function card({ title, sub, ref, body, extraTags, links }) {
+      const releaseHref = absUrl(ref.releaseUrl);
+      const allLinks = (links || []).concat(releaseHref ? ['<a href="' + esc(releaseHref) + '">Release document</a>'] : []).filter(Boolean).join('');
+      return `
+        <article class="card">
+          <div class="card-head">
+            <div>
+              <h2>${esc(title)}</h2>
+              ${sub ? '<p class="card-sub">' + sub + '</p>' : ''}
+            </div>
+            <div class="version">${esc(ref.version || 'unknown')}</div>
+          </div>
+          ${body || ''}
+          <div class="tags">${tagsHtml(ref, extraTags)}</div>
+          <div class="links">${allLinks}</div>
+        </article>
+      `;
+    }
+
+    // --- Plugin cards (release doc + manifest snapshot) ----------------------
+
+    function pluginCard(ref, release, manifest) {
+      const name = (manifest && manifest.name) || ref.id || 'Unnamed plugin';
+      const description = (manifest && manifest.description) || 'No description provided.';
+      const compat = (release && release.compatibility) || {};
+      const reqs = reqsHtml([
+        compat.core ? 'SelfHelp core <code>' + esc(compat.core) + '</code>' : '',
+        compat.pluginApi ? 'Plugin API <code>' + esc(compat.pluginApi) + '</code>' : '',
+        manifest && manifest.compatibility && manifest.compatibility.php ? 'PHP <code>' + esc(manifest.compatibility.php) + '</code>' : '',
+        release && Array.isArray(release.dependencies && release.dependencies.plugins) && release.dependencies.plugins.length > 0
+          ? 'Depends on plugins: <code>' + esc(release.dependencies.plugins.map((p) => p.id + ' ' + (p.range || '')).join(', ')) + '</code>' : '',
+      ]);
+      const manifestHref = absUrl(release && release.artifacts && release.artifacts.manifestUrl);
+      const archiveHref = absUrl(release && release.artifacts && release.artifacts.archiveUrl);
+      const homepage = manifest && manifest.homepage;
+      return card({
+        title: name,
+        sub: esc(ref.id || ''),
+        ref,
+        body: '<p class="desc">' + esc(description) + '</p>' + reqs,
+        extraTags: [
+          release && release.official ? '<span class="tag">official</span>' : '',
+        ],
+        links: [
+          homepage ? '<a href="' + esc(homepage) + '">Homepage</a>' : '',
+          manifestHref ? '<a href="' + esc(manifestHref) + '">Manifest</a>' : '',
+          archiveHref ? '<a href="' + esc(archiveHref) + '">Download .shplugin</a>' : '',
+        ],
+      });
+    }
+
+    // --- Load + render --------------------------------------------------------
 
     fetch('./registry.json', { cache: 'no-store' })
       .then((response) => {
-        if (!response.ok) {
-          throw new Error('HTTP ' + response.status);
-        }
+        if (!response.ok) throw new Error('HTTP ' + response.status);
         return response.json();
       })
-      .then((data) => {
-        const plugins = Array.isArray(data.plugins) ? data.plugins : [];
-        if (data.publishedAt) {
-          publishedAt.textContent = 'Published: ' + data.publishedAt;
-        } else {
-          publishedAt.textContent = 'Published: unknown';
-        }
+      .then(async (data) => {
+        publishedAt.textContent = 'Published: ' + (data.publishedAt || 'unknown');
 
-        if (plugins.length === 0) {
-          empty.hidden = false;
-          return;
-        }
+        const semverDesc = (a, b) => String(b.version).localeCompare(String(a.version), undefined, { numeric: true });
+        const core = (Array.isArray(data.core) ? data.core : []).slice().sort(semverDesc);
+        const frontend = (Array.isArray(data.frontend) ? data.frontend : []).slice().sort(semverDesc);
+        const scheduler = (Array.isArray(data.scheduler) ? data.scheduler : []).slice().sort(semverDesc);
+        const worker = (Array.isArray(data.worker) ? data.worker : []).slice().sort(semverDesc);
+        const plugins = (Array.isArray(data.plugins) ? data.plugins : []).slice().sort(semverDesc);
 
-        list.innerHTML = plugins.map((entry) => {
-          const manifest = manifestHref(entry);
-          const tags = [
-            entry.channel ? '<span class="tag">' + esc(entry.channel) + '</span>' : '',
-            entry.trustLevel ? '<span class="tag">' + esc(entry.trustLevel) + '</span>' : '',
-            entry.id ? '<span class="tag">' + esc(entry.id) + '</span>' : ''
-          ].join('');
+        // Platform: fetch each linked release doc (fail-soft to a ref-only card).
+        const platformCards = await Promise.all([
+          ...core.map(async (ref) => coreCard(ref, await fetchJson(absUrl(ref.releaseUrl)))),
+          ...frontend.map(async (ref) => frontendCard(ref, await fetchJson(absUrl(ref.releaseUrl)))),
+          ...scheduler.map(async (ref) => simplePlatformCard('SelfHelp Scheduler', 'standalone scheduler release ref (image also ships with core)', ref, await fetchJson(absUrl(ref.releaseUrl)))),
+          ...worker.map(async (ref) => simplePlatformCard('SelfHelp Worker', 'standalone worker release ref (image also ships with core)', ref, await fetchJson(absUrl(ref.releaseUrl)))),
+        ]);
+        if (platformCards.length === 0) platformEmpty.hidden = false;
+        platformList.innerHTML = platformCards.join('');
 
-          const links = [
-            entry.homepage ? '<a href="' + esc(entry.homepage) + '">Homepage</a>' : '',
-            manifest ? '<a href="' + esc(manifest) + '">Manifest</a>' : ''
-          ].filter(Boolean).join('');
-
-          return `
-            <article class="card">
-              <div class="card-head">
-                <div>
-                  <h2>${esc(entry.name || entry.id || 'Unnamed plugin')}</h2>
-                </div>
-                <div class="version">${esc(entry.version || 'unknown')}</div>
-              </div>
-              <p class="desc">${esc(entry.description || 'No description provided.')}</p>
-              <div class="tags">${tags}</div>
-              <div class="links">${links}</div>
-            </article>
-          `;
-        }).join('');
+        // Plugins: release doc -> manifest snapshot (name + description).
+        const pluginCards = await Promise.all(plugins.map(async (ref) => {
+          const release = await fetchJson(absUrl(ref.releaseUrl));
+          const manifest = release && release.artifacts && release.artifacts.manifestUrl
+            ? await fetchJson(absUrl(release.artifacts.manifestUrl))
+            : null;
+          return pluginCard(ref, release, manifest);
+        }));
+        if (pluginCards.length === 0) pluginEmpty.hidden = false;
+        pluginList.innerHTML = pluginCards.join('');
       })
       .catch(() => {
         error.hidden = false;

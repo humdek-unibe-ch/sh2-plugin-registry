@@ -16,6 +16,17 @@ serves — those are versioned in their own repositories and pinned per entry.
 
 ### Added
 
+- **Catalog page shows platform releases, descriptions, and requirements.**
+  `index.html` now renders two sections: **Platform releases** (core /
+  frontend / scheduler / worker cards with image refs + digests, database
+  migration info, and the runtime requirements from each signed release
+  document — frontend range, plugin API, MySQL/Redis/Mercure/PHP) and
+  **Plugins** (name + description resolved from the manifest snapshot, the
+  SelfHelp core / plugin API / PHP ranges each version requires, and
+  homepage / manifest / `.shplugin` / release-document links). Cards degrade
+  to ref-only when a linked document cannot be fetched; advisory-blocked
+  refs get a red `blocked by advisory` tag.
+
 - **Step-by-step release runbook** (`docs/operations/release-runbook.md`):
   the beginner-friendly, ordered guide covering when to tag
   backend/frontend/plugin repos, what each tag triggers, how image digests
