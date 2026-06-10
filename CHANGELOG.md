@@ -14,6 +14,35 @@ serves — those are versioned in their own repositories and pinned per entry.
 
 ## [Unreleased]
 
+### Added
+
+- **Step-by-step release runbook** (`docs/operations/release-runbook.md`):
+  the beginner-friendly, ordered guide covering when to tag
+  backend/frontend/plugin repos, what each tag triggers, how image digests
+  flow into the `publish-core-release` workflow, the one-time
+  keys/secrets setup (`SELFHELP_SIGNING_KEY`,
+  `SELFHELP_SIGNING_KEY_ID`, `REGISTRY_PUSH_TOKEN`, cosign,
+  `keys/trusted-keys.json`, host `SELFHELP_PLUGIN_TRUSTED_KEYS`), and a
+  troubleshooting table. Linked from `README.md`, `docs/README.md`,
+  `docs/operations/index.md`, and `docs/operations/publishing.md`.
+- **Production publisher key `prod` added to `keys/trusted-keys.json`.**
+  Its public half is the same key hosts already trust by default
+  (backend `.env.default` `SELFHELP_PLUGIN_TRUSTED_KEYS`). Releases signed
+  by CI with `SELFHELP_SIGNING_KEY_ID=prod` now verify in
+  `validate:unified`. The deterministic bootstrap key
+  `selfhelp-official-2026` stays active until every committed release doc
+  is re-signed with `prod`; flip it to `revoked` after that.
+
+### Fixed
+
+- **`publish-core-release` failed every non-`test` run even with the signing
+  secrets configured.** The "Refuse to dev-sign" guard read
+  `secrets.SELFHELP_SIGNING_KEY` inside a step-level `if:`, but the
+  `secrets` context is not available there (GitHub Actions contexts
+  availability), so the check always saw an empty string and exited 1. The
+  secrets are now mapped to job-scoped env and the guard checks `env.*`,
+  matching the documented workaround.
+
 ### Changed
 
 - **Plugins are now multi-version release refs** (BREAKING, pre-release). `plugins[]`

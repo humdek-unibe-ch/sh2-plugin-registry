@@ -116,8 +116,8 @@ These rules apply to every documentation change in active SelfHelp2 repositories
   refuses such entries.
 - Do not commit private Ed25519 signing keys. Production keys live
   exclusively in GitHub Actions secrets
-  (`SELFHELP_PLUGIN_SIGNING_KEY`,
-  `SELFHELP_PLUGIN_SIGNING_KEY_ID`).
+  (`SELFHELP_SIGNING_KEY`,
+  `SELFHELP_SIGNING_KEY_ID`).
 - Do not bypass the schema validation step in CI.
 - Do not include any runtime plugin code in this repo. Each plugin's
   own repository is the source for `manifests/` and `artifacts/`

@@ -27,7 +27,7 @@ npm run keygen
 
 `npm run keygen` runs `node scripts/sign.mjs keygen` and prints the base64-encoded public and private keys plus where to store each:
 
-- `privateKey` -> CI secret `SELFHELP_PLUGIN_SIGNING_KEY` (and `SELFHELP_PLUGIN_SIGNING_KEY_ID` for the matching key id).
+- `privateKey` -> CI secret `SELFHELP_SIGNING_KEY` (and `SELFHELP_SIGNING_KEY_ID` for the matching key id).
 - `publicKey` -> seeded into the host environment as `SELFHELP_PLUGIN_TRUSTED_KEYS=<keyId>;<base64-public-key>`.
 
 `SELFHELP_PLUGIN_DEV_SIGNING_KEY` is the local-dev fallback (its key id defaults to `dev`); CI rejects releases signed with `dev` for the `official` channel.
@@ -66,7 +66,7 @@ They are signed with `scripts/sign-release.mjs`:
 
 ```bash
 node scripts/sign-release.mjs --input releases/<kind>/<id>.json \
-  --key "$SELFHELP_PLUGIN_SIGNING_KEY" --key-id "$SELFHELP_PLUGIN_SIGNING_KEY_ID"
+  --key "$SELFHELP_SIGNING_KEY" --key-id "$SELFHELP_SIGNING_KEY_ID"
 ```
 
 - The signature is an Ed25519 detached signature over the **canonical JSON of the
@@ -88,7 +88,7 @@ build before it can reach a manager.
 For a real public release you do not run `sign-release.mjs` by hand. The
 **`publish-core-release`** workflow (`.github/workflows/publish-core-release.yml`,
 `workflow_dispatch`) signs with the production key read from the repo secrets
-`SELFHELP_PLUGIN_SIGNING_KEY` + `SELFHELP_PLUGIN_SIGNING_KEY_ID`, then opens a
+`SELFHELP_SIGNING_KEY` + `SELFHELP_SIGNING_KEY_ID`, then opens a
 **reviewed pull request** — it never pushes to `main` or publishes Pages by
 itself. The workflow **refuses to dev-sign** any channel other than `test`, so a
 missing production secret fails fast instead of shipping a `dev`-keyed `stable`

@@ -29,7 +29,7 @@ SPDX-License-Identifier: MPL-2.0
  * Env precedence for sign:
  *
  *   --key      flag (base64)
- *   SELFHELP_PLUGIN_SIGNING_KEY       (production)
+ *   SELFHELP_SIGNING_KEY       (production)
  *   SELFHELP_PLUGIN_DEV_SIGNING_KEY   (dev opt-in; emits keyId=dev)
  *
  * The PHP twin lives at src/Plugin/Security/SignedPayloadBuilder.php
@@ -110,21 +110,21 @@ async function runSign(args) {
 
     const keyB64 =
         args.key ||
-        process.env.SELFHELP_PLUGIN_SIGNING_KEY ||
+        process.env.SELFHELP_SIGNING_KEY ||
         process.env.SELFHELP_PLUGIN_DEV_SIGNING_KEY;
     if (!keyB64) {
         throw new Error(
-            'No signing key. Pass --key or set SELFHELP_PLUGIN_SIGNING_KEY (production) ' +
+            'No signing key. Pass --key or set SELFHELP_SIGNING_KEY (production) ' +
                 'or SELFHELP_PLUGIN_DEV_SIGNING_KEY (dev opt-in).',
         );
     }
 
-    let keyId = args['key-id'] || process.env.SELFHELP_PLUGIN_SIGNING_KEY_ID;
+    let keyId = args['key-id'] || process.env.SELFHELP_SIGNING_KEY_ID;
     if (!keyId) {
-        if (process.env.SELFHELP_PLUGIN_DEV_SIGNING_KEY && !process.env.SELFHELP_PLUGIN_SIGNING_KEY) {
+        if (process.env.SELFHELP_PLUGIN_DEV_SIGNING_KEY && !process.env.SELFHELP_SIGNING_KEY) {
             keyId = 'dev';
         } else {
-            throw new Error('--key-id <id> (or SELFHELP_PLUGIN_SIGNING_KEY_ID) is required.');
+            throw new Error('--key-id <id> (or SELFHELP_SIGNING_KEY_ID) is required.');
         }
     }
 
@@ -157,7 +157,7 @@ async function runKeygen() {
             {
                 publicKey: bytesToBase64(kp.publicKey),
                 privateKey: bytesToBase64(kp.privateKey),
-                hint: 'Store privateKey in CI secrets as SELFHELP_PLUGIN_SIGNING_KEY. Seed publicKey into the host SELFHELP_PLUGIN_TRUSTED_KEYS env (keyId=<your-id>;<base64>).',
+                hint: 'Store privateKey in CI secrets as SELFHELP_SIGNING_KEY. Seed publicKey into the host SELFHELP_PLUGIN_TRUSTED_KEYS env (keyId=<your-id>;<base64>).',
             },
             null,
             2,

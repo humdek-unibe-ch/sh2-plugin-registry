@@ -13,8 +13,8 @@
 #   - Images already built + pushed by sh-selfhelp_backend `docker-release.yml`
 #     (backend/worker/scheduler) and sh-selfhelp_frontend `frontend-release.yml`
 #     (frontend). Copy the printed digests into the `digests` input.
-#   - Secrets SELFHELP_PLUGIN_SIGNING_KEY (base64 64-byte Ed25519 secret) and
-#     SELFHELP_PLUGIN_SIGNING_KEY_ID configured for `stable`/`beta` releases.
+#   - Secrets SELFHELP_SIGNING_KEY (base64 64-byte Ed25519 secret) and
+#     SELFHELP_SIGNING_KEY_ID configured for `stable`/`beta` releases.
 #
 # See docs/operations/publishing.md ("Publishing a platform release").
 
@@ -58,6 +58,12 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    # Mapped to job-scoped env because the `secrets` context is NOT available
+    # in step-level `if:` expressions (the old guard read it as empty and
+    # always failed non-test runs, even with the secrets configured).
+    env:
+      SELFHELP_SIGNING_KEY: ${{ secrets.SELFHELP_SIGNING_KEY }}
+      SELFHELP_SIGNING_KEY_ID: ${{ secrets.SELFHELP_SIGNING_KEY_ID }}
     steps:
       - uses: actions/checkout@v4
 
@@ -68,9 +74,9 @@ jobs:
       - run: npm ci || npm install
 
       - name: Refuse to dev-sign a non-test release
-        if: ${{ inputs.channel != 'test' && secrets.SELFHELP_PLUGIN_SIGNING_KEY == '' }}
+        if: ${{ inputs.channel != 'test' && env.SELFHELP_SIGNING_KEY == '' }}
         run: |
-          echo "::error::channel '${{ inputs.channel }}' requires the production signing key. Set SELFHELP_PLUGIN_SIGNING_KEY / SELFHELP_PLUGIN_SIGNING_KEY_ID secrets, or use channel 'test'."
+          echo "::error::channel '${{ inputs.channel }}' requires the production signing key. Set SELFHELP_SIGNING_KEY / SELFHELP_SIGNING_KEY_ID secrets, or use channel 'test'."
           exit 1
 
       - name: Assemble + sign + add registry ref
@@ -82,8 +88,6 @@ jobs:
           PUBLISH_DIGESTS: ${{ inputs.digests }}
           PUBLISH_METADATA: ${{ inputs.metadata }}
           PUBLISH_IMAGE_OWNER: ${{ github.repository_owner }}
-          SELFHELP_PLUGIN_SIGNING_KEY: ${{ secrets.SELFHELP_PLUGIN_SIGNING_KEY }}
-          SELFHELP_PLUGIN_SIGNING_KEY_ID: ${{ secrets.SELFHELP_PLUGIN_SIGNING_KEY_ID }}
         run: node scripts/publish-release.mjs
 
       - name: Validate registry + re-verify signatures

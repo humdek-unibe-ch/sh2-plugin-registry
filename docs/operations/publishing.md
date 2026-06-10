@@ -3,8 +3,12 @@
 Audience: Plugin authors, platform release engineers, and registry maintainers.
 Status: active.
 Applies to: `sh2-plugin-registry`.
-Last verified: 2026-06-09.
+Last verified: 2026-06-10.
 Source of truth: `scripts/build-plugin-release.mjs`, `scripts/sign.mjs`, `scripts/sign-release.mjs`, `scripts/assemble-release.mjs`, `scripts/publish-release.mjs`, `scripts/add-release-ref.mjs`, `scripts/validate-unified.mjs`, `.github/workflows/build-registry.yml`, and `.github/workflows/publish-core-release.yml`.
+
+> Just want the ordered, copy-paste release steps? Read the
+> [release runbook](release-runbook.md) first — this page is the full
+> reference behind it.
 
 This is the **one official SelfHelp registry**. It publishes two kinds of signed
 content from the same `registry.json`, and **both** are now the SAME release-ref
@@ -32,7 +36,7 @@ A plugin author runs the `scripts/publish-to-registry.mjs` script shipped with t
 1. Builds the plugin's `.shplugin` archive locally (`scripts/build-shplugin.mjs`).
 2. Computes the SHA-256 of the `.shplugin` (the install artifact the backend downloads + checksum-verifies).
 3. Calls this repo's `scripts/build-plugin-release.mjs`, which maps the manifest onto the release axes (`compatibility.selfhelp` → `compatibility.core`, `pluginApiVersion` → `compatibility.pluginApi`, `security.trustLevel` → `official`), pins the archive sha256, and emits an **unsigned** plugin-release document (validated against `plugin-release.schema.json`).
-4. Ed25519-signs that document in place with `scripts/sign-release.mjs` (production key from `SELFHELP_PLUGIN_SIGNING_KEY`/`…_KEY_ID`, else the deterministic dev key) → `releases/plugins/<plugin-id>-<version>.json`.
+4. Ed25519-signs that document in place with `scripts/sign-release.mjs` (production key from `SELFHELP_SIGNING_KEY`/`…_KEY_ID`, else the deterministic dev key) → `releases/plugins/<plugin-id>-<version>.json`.
 5. Copies `plugin.json` to `manifests/<plugin-id>-<version>.json`, copies the `.shplugin` to `artifacts/<plugin-id>-<version>.shplugin`, and adds the release **ref** to `registry.json` `plugins[]` (multi-version: keeps every other version, replaces only the same id+version).
 6. Commits and pushes the registry change (the workflow on this repo republishes GitHub Pages) and runs `gh release create v<version> dist/<plugin-id>-<version>.shplugin --notes-file CHANGELOG.md` so the `.shplugin` is also attached as a release asset for offline installs.
 
@@ -71,7 +75,7 @@ Sign the canonical JSON of the release **without** its `security` block:
 ```bash
 # production: pass the real key + key id (CI secrets)
 node scripts/sign-release.mjs --input releases/core/<id>.json \
-  --key "$SELFHELP_PLUGIN_SIGNING_KEY" --key-id "$SELFHELP_PLUGIN_SIGNING_KEY_ID"
+  --key "$SELFHELP_SIGNING_KEY" --key-id "$SELFHELP_SIGNING_KEY_ID"
 
 # local/dev: with no key in the environment it uses the deterministic dev key
 node scripts/sign-release.mjs --input releases/core/<id>.json
@@ -169,7 +173,7 @@ GitHub → **Actions → publish-core-release → Run workflow**, then fill the 
 
 The job runs `scripts/publish-release.mjs`, which chains
 `assemble-release.mjs` → `sign-release.mjs` (with the production key from the
-`SELFHELP_PLUGIN_SIGNING_KEY` / `SELFHELP_PLUGIN_SIGNING_KEY_ID` secrets) →
+`SELFHELP_SIGNING_KEY` / `SELFHELP_SIGNING_KEY_ID` secrets) →
 `add-release-ref.mjs`, then re-runs `validate:unified` + `guard:trust` and opens a
 PR on branch `publish/<kind>-<version>`.
 
@@ -194,7 +198,7 @@ until this human merge.
 > - The workflow **never** pushes to `main` and **never** publishes Pages. Only a
 >   reviewed human merge does. Do not add auto-merge.
 > - The production **private** key lives **only** in the repo secret
->   `SELFHELP_PLUGIN_SIGNING_KEY` (+ `…_KEY_ID`). Never commit it, paste it into a
+>   `SELFHELP_SIGNING_KEY` (+ `…_KEY_ID`). Never commit it, paste it into a
 >   release doc, or echo it in a log.
 > - `stable` requires the production key — the workflow **refuses to dev-sign** a
 >   non-`test` channel, so a missing secret fails fast instead of shipping a

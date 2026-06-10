@@ -7,7 +7,7 @@ SPDX-License-Identifier: MPL-2.0
 Audience: Plugin authors and registry maintainers.
 Status: active.
 Applies to: `sh2-plugin-registry` (the official SelfHelp v2 plugin registry).
-Last verified: 2026-06-03.
+Last verified: 2026-06-10.
 Source of truth: `registry.json`, `registry.schema.json`, `plugin-manifest.schema.json`, `scripts/`, and `.github/workflows/build-registry.yml`.
 
 Navigation entrypoint for the registry documentation, organized by audience and purpose per the Documentation Rules in `AGENTS.md`. The root [../README.md](../README.md) is the short overview.
@@ -23,6 +23,7 @@ Navigation entrypoint for the registry documentation, organized by audience and 
 
 | Need | Read |
 | --- | --- |
+| Step-by-step: release backend/frontend/plugins end to end (tags, digests, keys, order) | [operations/release-runbook.md](operations/release-runbook.md) |
 | How the registry repo is laid out and what each entry must contain | [reference/registry-layout.md](reference/registry-layout.md) |
 | How a plugin author publishes or updates a plugin | [operations/publishing.md](operations/publishing.md) |
 | How signing keys, signatures, and trust levels work | [operations/signing.md](operations/signing.md) |

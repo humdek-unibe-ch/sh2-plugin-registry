@@ -16,7 +16,7 @@ SPDX-License-Identifier: MPL-2.0
  *
  * Key selection (same precedence as sign.mjs):
  *   --key <base64-64-byte-secret> + --key-id <id>     (production)
- *   SELFHELP_PLUGIN_SIGNING_KEY + SELFHELP_PLUGIN_SIGNING_KEY_ID
+ *   SELFHELP_SIGNING_KEY + SELFHELP_SIGNING_KEY_ID
  *   (default) the DETERMINISTIC DEV key derived from the fixed seed
  *             'selfhelp-dev-registry-signing-key-v1', keyId
  *             'selfhelp-official-2026'. This is the same dev key the committed
@@ -78,10 +78,10 @@ function sha256Hex(s) {
 }
 
 function resolveKey(args) {
-  const keyB64 = args.key || env.SELFHELP_PLUGIN_SIGNING_KEY;
+  const keyB64 = args.key || env.SELFHELP_SIGNING_KEY;
   if (keyB64) {
-    const keyId = args['key-id'] || env.SELFHELP_PLUGIN_SIGNING_KEY_ID;
-    if (!keyId) throw new Error('--key-id (or SELFHELP_PLUGIN_SIGNING_KEY_ID) is required when a key is supplied.');
+    const keyId = args['key-id'] || env.SELFHELP_SIGNING_KEY_ID;
+    if (!keyId) throw new Error('--key-id (or SELFHELP_SIGNING_KEY_ID) is required when a key is supplied.');
     const secretKey = new Uint8Array(Buffer.from(keyB64, 'base64'));
     if (secretKey.length !== SECRET_KEY_BYTES) {
       throw new Error(`Signing key must be ${SECRET_KEY_BYTES} bytes (got ${secretKey.length}).`);

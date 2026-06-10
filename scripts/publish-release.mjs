@@ -29,7 +29,7 @@ SPDX-License-Identifier: MPL-2.0
  *                         manualConfirm, php}; services: {requiredCoreRange,
  *                         requiredApiVersion}                      (optional)
  *   PUBLISH_IMAGE_OWNER   ghcr owner for image tags               (default humdek-unibe-ch)
- *   SELFHELP_PLUGIN_SIGNING_KEY / _ID   production Ed25519 key + id (set by CI secret)
+ *   SELFHELP_SIGNING_KEY / _ID   production Ed25519 key + id (set by CI secret)
  */
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -120,7 +120,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
     writeFileSync(outPath, JSON.stringify(body, null, 2) + '\n', 'utf8');
     process.stderr.write(`assembled ${releaseUrl}\n`);
 
-    // Sign with the production key (sign-release.mjs reads SELFHELP_PLUGIN_SIGNING_KEY/_ID from env).
+    // Sign with the production key (sign-release.mjs reads SELFHELP_SIGNING_KEY/_ID from env).
     execFileSync('node', [path.join(SCRIPTS, 'sign-release.mjs'), '--input', outPath], {
       stdio: 'inherit',
       env: process.env,

@@ -51,6 +51,7 @@ Platform release docs under `releases/<kind>/<id>.json` are signed with
 
 Full documentation lives in [docs/](docs/README.md):
 
+- **Start here — step-by-step release runbook** (tags, order, keys, troubleshooting): [docs/operations/release-runbook.md](docs/operations/release-runbook.md)
 - Registry layout and entry schema (plugins + core/frontend/scheduler/worker): [docs/reference/registry-layout.md](docs/reference/registry-layout.md)
 - Publishing plugins and platform releases: [docs/operations/publishing.md](docs/operations/publishing.md)
 - Signing keys, release signing, and trust levels: [docs/operations/signing.md](docs/operations/signing.md)
