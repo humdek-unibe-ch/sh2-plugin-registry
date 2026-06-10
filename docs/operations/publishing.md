@@ -218,6 +218,67 @@ runbook and an automated Docker e2e that do exactly this — see
 `sh-manager/docs/operator/rehearsal-publish-install-update.md`. Rehearsal never
 touches this repository, GitHub Pages, or the production key.
 
+## Automatic release candidates (`auto-core-release`)
+
+The manual workflow above stays the fallback, but for the common case the
+candidate is staged **automatically**. The `auto-core-release` workflow
+(`.github/workflows/auto-core-release.yml`) runs the compatibility resolver
+(`scripts/resolve-core-candidate.mjs`) and then feeds the **same**
+`publish-release.mjs` chain (assemble → prod-sign → ref → validate → PR). The
+human review + merge gate is unchanged — automation stops at the PR.
+
+```mermaid
+flowchart LR
+  tag["component tag push<br/>(backend/frontend repo)"] --> img["images built + pushed to GHCR"]
+  img --> disp["repository_dispatch<br/>(or daily cron / manual dispatch)"]
+  disp --> res["resolver: duplicate guard ->\nmanifest at tag -> GHCR digests ->\nbidirectional semver check"]
+  res --> auto["assemble + sign + validate<br/>(same chain as manual)"]
+  auto --> pr["reviewed PR (no auto-merge)"]
+  pr --> merge["human merge republishes Pages"]
+```
+
+Triggers:
+
+- **`repository_dispatch`** — instant. The component release workflows send
+  `core-image-published` / `frontend-image-published` with
+  `client_payload: {version, digests}` when the optional
+  `REGISTRY_DISPATCH_TOKEN` secret (a PAT that can write this repo) is
+  configured in the component repo.
+- **`schedule`** (daily) — reconcile catch-up: the latest component git tag
+  missing from `registry.json` becomes a candidate even when no dispatch token
+  is configured anywhere.
+- **`workflow_dispatch`** — manual replay of a single candidate (kind +
+  version, optional digests/metadata overrides).
+
+What the resolver enforces before anything is signed:
+
+1. **Duplicate guard** — the version is skipped (neutral, green) when it is
+   already referenced by `registry.json` or a `publish/<kind>-<version>`
+   branch is already staged. No duplicate PRs.
+2. **Component self-declaration** — `release-manifest.json` at the component's
+   git tag declares the supported counterpart ranges
+   (`supports.frontend` for core, `supports.core` for frontend) plus release
+   metadata (`minimumDirectUpgradeFrom`, `pluginApiVersion`, `php`,
+   `requiredApiVersion`). The backend's Doctrine migration range is computed
+   from the `migrations/` directory listing at that tag; the frontend's
+   `sharedPackageVersion` is read from its `package-lock.json` at that tag.
+3. **Digest truth** — every image digest is resolved from **GHCR by tag**;
+   digests claimed by the trigger payload are cross-checked and a mismatch is
+   a hard failure (`digest-mismatch`), never silently corrected.
+4. **Bidirectional compatibility** — a core candidate must accept the latest
+   stable frontend **and** be accepted by that frontend's
+   `backendCompatibility.requiredCoreRange` (mirrored for frontend
+   candidates). `missing-component` / `incompatible` outcomes fail the run
+   visibly; nothing is staged.
+
+Resolver outcomes: `ready` (stage the PR), `duplicate` (skip, green),
+`missing-component` / `incompatible` / `digest-mismatch` / `error` (fail,
+nothing staged). Tests: `scripts/resolve-core-candidate.test.mjs`
+(`npm test`).
+
+`scheduler` / `worker` releases are core-coupled and rare — they stay on the
+manual `publish-core-release` workflow.
+
 ## Security advisories
 
 `advisories.json` (schema: `advisory-feed.schema.json`) is the security advisory

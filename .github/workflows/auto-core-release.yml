@@ -1,0 +1,185 @@
+# SPDX-FileCopyrightText: 2026 Humdek, University of Bern
+# SPDX-License-Identifier: MPL-2.0
+#
+# AUTO core/frontend release candidates.
+#
+# When sh-selfhelp_backend or sh-selfhelp_frontend publishes images for a new
+# tag, this workflow resolves a complete, compatible platform release from the
+# already-published counterparts and stages it as a signed, REVIEWED pull
+# request. It automates the matching + assembly + signing — it NEVER makes a
+# release installable by itself: only a human merging the PR republishes the
+# registry (same safety model as the manual publish-core-release workflow).
+#
+# Triggers:
+#   - repository_dispatch from the component release workflows (instant; needs
+#     a REGISTRY_DISPATCH_TOKEN secret in the component repo);
+#   - schedule (daily reconcile catch-up: latest component tag missing from
+#     the registry gets a candidate — covers a missing/unset dispatch token);
+#   - workflow_dispatch (manual replay of a single candidate).
+#
+# The resolver (scripts/resolve-core-candidate.mjs):
+#   - skips duplicates (version already in registry.json or branch staged);
+#   - reads the component's own `release-manifest.json` at the git tag for the
+#     supported counterpart ranges (semver, checked BIDIRECTIONALLY);
+#   - resolves every image digest from GHCR by tag and cross-checks any digest
+#     claimed by the trigger payload (mismatch = hard failure);
+#   - fails loudly on incompatible/missing counterparts instead of guessing.
+
+name: auto-core-release
+
+on:
+  repository_dispatch:
+    types: [core-image-published, frontend-image-published]
+  workflow_dispatch:
+    inputs:
+      kind:
+        description: "Release kind"
+        required: true
+        type: choice
+        options: [core, frontend]
+      version:
+        description: "Component version (semver, without leading v)"
+        required: true
+        type: string
+      digests:
+        description: 'Optional JSON digests to cross-check. core: {"backend","worker","scheduler"} ; frontend: {"image"}'
+        required: false
+        type: string
+      metadata:
+        description: 'Optional JSON metadata overrides (e.g. {"migrationRange":"..","destructive":true})'
+        required: false
+        type: string
+      channel:
+        description: "Release channel"
+        required: true
+        default: stable
+        type: choice
+        options: [stable, beta, nightly, test]
+  schedule:
+    - cron: "23 5 * * *"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: auto-core-release
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      candidates: ${{ steps.plan.outputs.candidates }}
+      count: ${{ steps.plan.outputs.count }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci || npm install
+      - name: Plan candidates from the trigger
+        id: plan
+        env:
+          RESOLVE_MODE: plan
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/resolve-core-candidate.mjs
+
+  publish:
+    needs: plan
+    if: needs.plan.outputs.count != '0'
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 1
+      fail-fast: false
+      matrix:
+        candidate: ${{ fromJson(needs.plan.outputs.candidates) }}
+    env:
+      SELFHELP_SIGNING_KEY: ${{ secrets.SELFHELP_SIGNING_KEY }}
+      SELFHELP_SIGNING_KEY_ID: ${{ secrets.SELFHELP_SIGNING_KEY_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci || npm install
+
+      - name: Resolve compatibility + verify digests
+        id: resolve
+        env:
+          RESOLVE_MODE: candidate
+          CANDIDATE_JSON: ${{ toJson(matrix.candidate) }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/resolve-core-candidate.mjs
+
+      - name: Already published or staged — nothing to do
+        if: steps.resolve.outputs.status == 'duplicate'
+        run: echo "::notice::${{ matrix.candidate.kind }} ${{ matrix.candidate.version }} is already in the registry or staged for review."
+
+      - name: Refuse to dev-sign a non-test release
+        if: steps.resolve.outputs.status == 'ready' && steps.resolve.outputs.publish_channel != 'test' && env.SELFHELP_SIGNING_KEY == ''
+        run: |
+          echo "::error::channel '${{ steps.resolve.outputs.publish_channel }}' requires the production signing key. Set SELFHELP_SIGNING_KEY / SELFHELP_SIGNING_KEY_ID secrets."
+          exit 1
+
+      - name: Assemble + sign + add registry ref
+        if: steps.resolve.outputs.status == 'ready'
+        env:
+          PUBLISH_KIND: ${{ steps.resolve.outputs.publish_kind }}
+          PUBLISH_VERSION: ${{ steps.resolve.outputs.publish_version }}
+          PUBLISH_CHANNEL: ${{ steps.resolve.outputs.publish_channel }}
+          PUBLISH_SEED_FROM: ${{ steps.resolve.outputs.publish_seed_from }}
+          PUBLISH_DIGESTS: ${{ steps.resolve.outputs.publish_digests }}
+          PUBLISH_METADATA: ${{ steps.resolve.outputs.publish_metadata }}
+          PUBLISH_IMAGE_OWNER: ${{ github.repository_owner }}
+        run: node scripts/publish-release.mjs
+
+      - name: Validate registry + re-verify signatures
+        if: steps.resolve.outputs.status == 'ready'
+        run: |
+          npm run validate:unified
+          npm run guard:trust
+
+      # The org currently disallows Actions-created PRs; this step still pushes
+      # the branch, and the summary below prints the one-click compare link.
+      - name: Open reviewed pull request
+        if: steps.resolve.outputs.status == 'ready'
+        continue-on-error: true
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: publish/${{ steps.resolve.outputs.publish_kind }}-${{ steps.resolve.outputs.publish_version }}
+          title: "Publish ${{ steps.resolve.outputs.publish_kind }} ${{ steps.resolve.outputs.publish_version }} (${{ steps.resolve.outputs.publish_channel }}) [auto]"
+          body: |
+            Auto-resolved candidate: **${{ steps.resolve.outputs.publish_kind }} ${{ steps.resolve.outputs.publish_version }}** on `${{ steps.resolve.outputs.publish_channel }}`.
+
+            Digests (resolved from GHCR by tag, payload cross-checked):
+            ```json
+            ${{ steps.resolve.outputs.publish_digests }}
+            ```
+            Metadata (from the component's `release-manifest.json` at the tag):
+            ```json
+            ${{ steps.resolve.outputs.publish_metadata }}
+            ```
+
+            Reviewer checklist before merge:
+            - [ ] The digests match the component release workflow output.
+            - [ ] `validate:unified` is green (schema + Ed25519 signature re-verified).
+            - [ ] `guard:trust` is green.
+            - [ ] Compatibility ranges are intentional.
+
+            Merging to `main` republishes GitHub Pages. This PR does **not** auto-merge.
+          labels: release
+          delete-branch: true
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### auto-core-release: ${{ matrix.candidate.kind }} ${{ matrix.candidate.version }} -> ${{ steps.resolve.outputs.status }}"
+            if [ "${{ steps.resolve.outputs.status }}" = "ready" ]; then
+              echo ""
+              echo "- branch: \`publish/${{ steps.resolve.outputs.publish_kind }}-${{ steps.resolve.outputs.publish_version }}\`"
+              echo "- open the reviewed PR (if not auto-created): https://github.com/${{ github.repository }}/compare/main...publish/${{ steps.resolve.outputs.publish_kind }}-${{ steps.resolve.outputs.publish_version }}?expand=1"
+              echo "- digests: \`${{ steps.resolve.outputs.publish_digests }}\`"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

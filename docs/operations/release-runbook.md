@@ -9,7 +9,7 @@ Audience: Release engineers and maintainers, including first-time publishers.
 Status: active.
 Applies to: `sh2-plugin-registry`, `sh-selfhelp_backend`, `sh-selfhelp_frontend`, and every plugin repo (for example `sh2-shp-survey-js`).
 Last verified: 2026-06-10.
-Source of truth: `.github/workflows/publish-core-release.yml`, `.github/workflows/build-registry.yml`, `scripts/publish-release.mjs`, `scripts/sign-release.mjs`, `keys/trusted-keys.json`, backend `.github/workflows/docker-release.yml`, frontend `.github/workflows/frontend-release.yml`, and the plugin `publish-to-registry.yml` workflows.
+Source of truth: `.github/workflows/auto-core-release.yml`, `.github/workflows/publish-core-release.yml`, `.github/workflows/build-registry.yml`, `scripts/resolve-core-candidate.mjs`, `scripts/publish-release.mjs`, `scripts/sign-release.mjs`, `keys/trusted-keys.json`, backend `.github/workflows/docker-release.yml`, frontend `.github/workflows/frontend-release.yml`, and the plugin `publish-to-registry.yml` workflows.
 
 This is the "do this, then this" guide. It answers four questions:
 
@@ -30,30 +30,36 @@ Pages site:
 
 | What changed? | Where you act | What happens automatically | What you still do by hand |
 | --- | --- | --- | --- |
-| Backend code (Symfony) | Tag `v<version>` in `sh-selfhelp_backend` | `docker-release.yml` builds + pushes 3 images (`selfhelp-backend`, `selfhelp-worker`, `selfhelp-scheduler`) to GHCR and prints their digests | Publish a **core** release here (step 4) |
-| Frontend code (Next.js) | Tag `v<version>` in `sh-selfhelp_frontend` | `frontend-release.yml` builds + pushes `selfhelp-frontend` to GHCR and prints its digest | Publish a **frontend** release here (step 4) |
+| Backend code (Symfony) | Tag `v<version>` in `sh-selfhelp_backend` | `docker-release.yml` builds + pushes 3 images (`selfhelp-backend`, `selfhelp-worker`, `selfhelp-scheduler`) to GHCR, prints their digests, and triggers `auto-core-release` here, which stages a signed **core** release PR when the compatibility check passes | Review + merge the staged PR (step 5); fall back to the manual `publish-core-release` workflow when auto-resolve declines |
+| Frontend code (Next.js) | Tag `v<version>` in `sh-selfhelp_frontend` | `frontend-release.yml` builds + pushes `selfhelp-frontend` to GHCR, prints its digest, and triggers `auto-core-release` here, which stages a signed **frontend** release PR when the compatibility check passes | Review + merge the staged PR (step 5); manual workflow as fallback |
 | A plugin (for example SurveyJS) | Tag `v<version>` in the plugin repo | `publish-to-registry.yml` builds the signed `.shplugin`, pushes manifest + artifact + signed release doc into this repo, creates the GitHub Release, and Pages republishes | Nothing. Hosts see the new version in **Admin -> Plugins -> Available** |
 
 ```mermaid
 flowchart LR
   bt["backend tag v*"] --> bi["3 images + digests"]
   ft["frontend tag v*"] --> fi["1 image + digest"]
-  bi --> wf["publish-core-release workflow (here)"]
-  fi --> wf
-  wf --> pr["reviewed PR"] --> merge["human merge to main"]
+  bi --> auto["auto-core-release (here):<br/>resolver matches compatible counterparts,<br/>assembles + signs the candidate"]
+  fi --> auto
+  auto --> pr["reviewed PR"] --> merge["human merge to main"]
   merge --> pages["build-registry republishes Pages"]
   pt["plugin tag v*"] --> pp["plugin workflow pushes signed release to this repo"] --> pages
   pages --> mgr["sh-manager installs core/frontend"]
   pages --> host["hosts list plugin in Available tab"]
 ```
 
-Two rules to remember:
+Three rules to remember:
 
 - **Images first, registry second.** A core/frontend release in this registry
   only points at image digests, so the images must exist before you publish.
-- **Nothing platform-related goes public without a human merge.** The
-  `publish-core-release` workflow only opens a PR. Plugins are the exception:
-  a plugin tag publishes straight through (that is by design).
+  The auto resolver enforces this: it reads the digests from GHCR itself.
+- **Nothing platform-related goes public without a human merge.** Both the
+  automatic `auto-core-release` and the manual `publish-core-release`
+  workflows stop at a reviewed PR. Plugins are the exception: a plugin tag
+  publishes straight through (that is by design).
+- **Auto only stages what verifies.** The resolver declines (visibly, with the
+  reason) when the counterpart component is missing or the bidirectional
+  semver ranges do not match — see
+  [publishing.md, "Automatic release candidates"](publishing.md#automatic-release-candidates-auto-core-release).
 
 ## 2. One-time setup: the keys and secrets
 
@@ -98,6 +104,7 @@ The two halves go to different places:
 | every plugin repo | `SELFHELP_SIGNING_KEY` + `SELFHELP_SIGNING_KEY_ID` | Signing the `.shplugin` + the plugin release doc | **If missing, the workflow silently falls back to the public dev key** — the release works but is not production-trusted |
 | every plugin repo | `REGISTRY_PUSH_TOKEN` | Letting the plugin workflow push into this repo | Fine-grained PAT, *Contents: Read and write*, scoped to `humdek-unibe-ch/sh2-plugin-registry` only. Without it the plugin still builds + attaches the GitHub Release, but the registry is NOT updated |
 | `sh-selfhelp_backend`, `sh-selfhelp_frontend` | `COSIGN_PRIVATE_KEY` + `COSIGN_PASSWORD` | Optional cosign image signing | If absent, the backend signs keyless via GitHub OIDC and the frontend skips signing |
+| `sh-selfhelp_backend`, `sh-selfhelp_frontend` | `REGISTRY_DISPATCH_TOKEN` | Optional: instant `auto-core-release` trigger after an image release | Fine-grained PAT, *Contents: Read and write* on `humdek-unibe-ch/sh2-plugin-registry` (repository_dispatch needs write). Without it the daily reconcile cron or a manual `auto-core-release` dispatch picks the version up instead |
 
 Step-by-step screenshots for the plugin secrets are in the SurveyJS repo:
 [`docs/operations/secrets-setup.md`](https://github.com/humdek-unibe-ch/sh2-shp-survey-js/blob/main/docs/operations/secrets-setup.md).
@@ -131,10 +138,14 @@ For a coordinated "everything changed" wave:
    order (backend -> shared + registry -> frontend + mobile -> manager ->
    plugins). See backend
    [`docs/developer/branch-merge-order.md`](https://github.com/humdek-unibe-ch/sh-selfhelp_backend/blob/main/docs/developer/branch-merge-order.md).
-2. **Tag the backend** -> wait for green -> copy 3 digests.
-3. **Tag the frontend** -> wait for green -> copy 1 digest.
-4. **Run `publish-core-release` here** — once for `core`, once for
-   `frontend` -> review PR(s) -> merge -> Pages republish.
+2. **Tag the backend** -> wait for green -> `auto-core-release` stages the
+   signed core PR (instant with `REGISTRY_DISPATCH_TOKEN`, else daily cron or
+   manual dispatch).
+3. **Tag the frontend** -> wait for green -> same auto flow stages the
+   frontend PR.
+4. **Review + merge the staged PR(s) here** -> Pages republish. Fall back to
+   the manual `publish-core-release` workflow only when the resolver declined
+   (incompatible/missing counterpart) or for `scheduler`/`worker` kinds.
 5. **Tag plugins** (if any changed) -> fully automatic.
 
 Only releasing one thing? Do just its steps — the three release types are
@@ -191,6 +202,15 @@ attaches an unsigned `frontend-release.json` descriptor to the GitHub Release.
 
 ### Step 3 — publish the core release (in this repo)
 
+**Normally automatic.** After the backend tag goes green, the
+`auto-core-release` workflow resolves the digests from GHCR, reads the
+backend's `release-manifest.json` at the tag, checks compatibility against the
+latest stable frontend, and stages the signed PR on
+`publish/core-<version>` by itself (instant with the dispatch token, otherwise
+on the daily reconcile or a manual **Actions -> auto-core-release -> Run
+workflow** with `kind=core`, `version=<version>`). If the auto PR appeared,
+jump to step 5. Run the manual flow below only when the resolver declined.
+
 GitHub -> `sh2-plugin-registry` -> **Actions -> publish-core-release -> Run
 workflow**, fill in:
 
@@ -209,6 +229,11 @@ and opens a PR on branch `publish/core-0.2.0`. **It never publishes by
 itself.**
 
 ### Step 4 — publish the frontend release
+
+**Normally automatic** — same auto flow as step 3 (`kind=frontend`); the
+resolver reads `supports.core` from the frontend's `release-manifest.json` and
+the built `@selfhelp/shared` version from its `package-lock.json` at the tag.
+If the auto PR appeared, jump to step 5. Manual fallback:
 
 Same as step 3 with:
 
@@ -275,12 +300,12 @@ Available** on the next refresh.
 
 ## 6. When do I tag what?
 
-| Situation | Tag backend? | Tag frontend? | Registry workflow? | Tag plugin? |
+| Situation | Tag backend? | Tag frontend? | Registry release | Tag plugin? |
 | --- | --- | --- | --- | --- |
-| Backend-only fix/feature | Yes | No | `core` | No |
-| Frontend-only fix/feature | No | Yes | `frontend` | No |
-| Coordinated platform wave | Yes | Yes | `core` + `frontend` | If changed |
-| Plugin-only change | No | No | No (automatic) | Yes |
+| Backend-only fix/feature | Yes | No | `core` — auto-staged PR, you merge | No |
+| Frontend-only fix/feature | No | Yes | `frontend` — auto-staged PR, you merge | No |
+| Coordinated platform wave | Yes | Yes | `core` + `frontend` — auto-staged PRs, you merge | If changed |
+| Plugin-only change | No | No | No (fully automatic) | Yes |
 | Docs-only change anywhere | No | No | No | No |
 
 Versioning rules while the platform is pre-1.0 (`0.x`): every **minor** is
@@ -304,6 +329,9 @@ change.
 | Host says `signature key not trusted (keyId=...)` on plugin install | Host env lacks the public key | Add `SELFHELP_PLUGIN_TRUSTED_KEYS=<keyId>=<base64-public>` on the host and restart PHP |
 | Pages site never updates after merge | GitHub Pages not enabled with the Actions source | Settings -> Pages -> Source = GitHub Actions |
 | Trivy scan step fails to resolve the action | A pre-`0.35.0` `trivy-action` tag (those tags were removed after the March 2026 supply-chain incident) | Pin `aquasecurity/trivy-action` to the `0.35.0` commit SHA (already done in backend/frontend release workflows) |
+| `auto-core-release` resolves `incompatible` or `missing-component` | The new component's `release-manifest.json` ranges do not match the latest stable counterpart (or no counterpart is published yet) | Intentional stop. Fix the ranges (component repo) and re-tag, publish the counterpart first, or use the manual `publish-core-release` with explicit metadata |
+| `auto-core-release` resolves `digest-mismatch` | The digests sent by the component workflow differ from what GHCR serves for the tag | Treat as a supply-chain alarm: verify the image tag was not moved, re-run the component release, only then re-dispatch |
+| Component tag built fine but no auto PR appeared | `REGISTRY_DISPATCH_TOKEN` not configured in the component repo | Wait for the daily reconcile, or run **Actions -> auto-core-release -> Run workflow** manually (kind + version) |
 
 ## 8. See also
 
