@@ -51,8 +51,8 @@
     }
   },
   "security": {
-    "signature": "EonqqGT7Tc7keFfyzAGZmVpXq1/rDgbpfn+PiB/Uo0QS4Z9hOvyS/1BW/iVo1hfyCfS02AuAgK+/eTufvcg1Bg==",
-    "keyId": "selfhelp-official-2026",
+    "signature": "8KnlR0vCKbgr/laMajJYDg3Vc71bzmRbt7T4gNhw48Xb+aYwaE1pQwPFD5MbSfMkwGnqam5dhZCAz6y/3XD0AQ==",
+    "keyId": "prod",
     "signedPayloadSha256": "sha256:6e25e1153857d5b8fbbd7ba54d7b061d218b807d61dbdfbc2740498a5301793f"
   }
 }

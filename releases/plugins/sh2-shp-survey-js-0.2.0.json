@@ -17,8 +17,8 @@
     "sha256": "sha256:1a2b8e8499988ca7706d0cd484b54ce06210fd50f572a42167bdc8b0bd0bf0b4"
   },
   "security": {
-    "signature": "sk+EQu7izaZDGKNhGnCp7DkVHCx0NHmQ0nL7wsd0KuNN6APIq/orHRoI1NaV1unpLVjEXoQFsGjhCQisVhgHBA==",
-    "keyId": "selfhelp-official-2026",
+    "signature": "k5gD1K366Xgvf6qvQDUZeyGOZRTWyMfmvBvvdcxKThnjm7O24AnNE7LzE16bz5dAVq8yp/4nw9o6GgKh1cVeDg==",
+    "keyId": "prod",
     "signedPayloadSha256": "sha256:2938dcd8c0749566dfdc8ec7a519bd2b35918abeb321d2b913d5a0a475498185"
   }
 }

@@ -12,8 +12,8 @@
     "requiredCoreRange": ">=0.1.0 <0.2.0"
   },
   "security": {
-    "signature": "dh6YK+AT0oKe2gBHWjEGifRUHrCSnESKrFqtLOhrqtgSh6I/xPgLeUoX0cfIYLLWhibuOJDva+HXT1Sa8DHeBg==",
-    "keyId": "selfhelp-official-2026",
+    "signature": "0YMagj91Gt22xQ3TGqJbNm2eEoQ9TavsQbj9+opbVYdbZg9hPoF13OuO5MNBdSnj1SACY/+NBctImY97xswyBA==",
+    "keyId": "prod",
     "signedPayloadSha256": "sha256:79bff732ee5de6159d3e6c697cc53f1ba4a5835bfd199c5be8ad16729bd11881"
   }
 }
