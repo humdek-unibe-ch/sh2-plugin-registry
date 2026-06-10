@@ -49,6 +49,9 @@ SPDX-License-Identifier: MPL-2.0
  *   --image / --digest
  *   --required-core-range <range>
  *   --required-api-version <version>         (frontend: required; services: optional)
+ *   --shared-package-version <version>       (frontend only: the @selfhelp/shared
+ *                                            version the image was built with;
+ *                                            overrides the seeded builtFrom value)
  *
  * Example (a 0.2.0 core that mirrors 0.1.0 but with new images + migrations):
  *   node scripts/assemble-release.mjs --kind core --from releases/core/selfhelp-core-0.1.0.json \
@@ -128,6 +131,11 @@ function buildCore(args, seed) {
 
 function buildFrontend(args, seed) {
   const version = required(args, 'version');
+  // builtFrom is informational build provenance; a seeded value must not
+  // survive when the new image was built with a different @selfhelp/shared.
+  const builtFrom = { ...(seed.builtFrom ?? {}) };
+  const sharedPackageVersion = str(args['shared-package-version']);
+  if (sharedPackageVersion) builtFrom.sharedPackageVersion = sharedPackageVersion;
   return prune({
     kind: 'selfhelp-frontend-release',
     id: str(args.id) || `selfhelp-frontend-${version}`,
@@ -135,7 +143,7 @@ function buildFrontend(args, seed) {
     channel: str(args.channel) || seed.channel || 'stable',
     image: str(args.image) || seed.image,
     digest: str(args.digest) || seed.digest,
-    ...(seed.builtFrom ? { builtFrom: seed.builtFrom } : {}),
+    ...(Object.keys(builtFrom).length ? { builtFrom } : {}),
     backendCompatibility: {
       requiredCoreRange: str(args['required-core-range']) || seed.backendCompatibility?.requiredCoreRange,
       requiredApiVersion: str(args['required-api-version']) || seed.backendCompatibility?.requiredApiVersion,

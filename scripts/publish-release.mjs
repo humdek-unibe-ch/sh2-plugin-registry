@@ -27,7 +27,8 @@ SPDX-License-Identifier: MPL-2.0
  *   PUBLISH_METADATA      JSON; core: {minUpgradeFrom, pluginApi, frontendRange,
  *                         migrationRange, destructive, requiresBackup,
  *                         manualConfirm, php}; services: {requiredCoreRange,
- *                         requiredApiVersion}                      (optional)
+ *                         requiredApiVersion}; frontend additionally:
+ *                         {sharedPackageVersion}                   (optional)
  *   PUBLISH_IMAGE_OWNER   ghcr owner for image tags               (default humdek-unibe-ch)
  *   SELFHELP_SIGNING_KEY / _ID   production Ed25519 key + id (set by CI secret)
  */
@@ -77,6 +78,7 @@ export function buildPublishArgs({ kind, version, channel, digests = {}, metadat
       digest: digests.image,
       'required-core-range': metadata.requiredCoreRange,
       'required-api-version': metadata.requiredApiVersion,
+      ...(kind === 'frontend' ? { 'shared-package-version': metadata.sharedPackageVersion } : {}),
     });
   }
   throw new Error('PUBLISH_KIND must be one of: core, frontend, scheduler, worker');

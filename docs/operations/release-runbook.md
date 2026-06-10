@@ -214,8 +214,11 @@ Same as step 3 with:
 
 - `kind` = `frontend`, `version` = `0.2.0`
 - `digests` = `{"image":"sha256:..."}` (from step 2)
-- `metadata` = `{"requiredCoreRange":">=0.2.0 <0.3.0"}` — which core versions
-  this frontend works with
+- `metadata` = `{"requiredCoreRange":">=0.2.0 <0.3.0","requiredApiVersion":"0.1.0","sharedPackageVersion":"1.5.0"}`
+  — which core versions this frontend works with, plus the `@selfhelp/shared`
+  version the image was built with (read it from the frontend repo's
+  `package.json`; without it the seeded value from `seed_from` is carried
+  forward and can be stale)
 
 ### Step 5 — review and merge the PR(s)
 
@@ -292,7 +295,7 @@ change.
 | --- | --- | --- |
 | `publish-core-release` fails at "Refuse to dev-sign a non-test release" | `SELFHELP_SIGNING_KEY` / `..._KEY_ID` secrets are not set in this repo | Add the secrets (section 2.2), or use `channel: test` for a rehearsal |
 | `publish-core-release` failed at the same step BEFORE 2026-06-10 even with secrets set | Workflow bug: the guard read the `secrets` context inside a step `if:`, where it is always empty | Fixed in the workflow (secrets are now job-scoped env). Re-run on the current `main` |
-| `publish-core-release` fails at "Open reviewed pull request" with "GitHub Actions is not permitted to create ... pull requests" | Repo setting is off | Settings -> Actions -> General -> enable "Allow GitHub Actions to create and approve pull requests" |
+| `publish-core-release` fails at "Open reviewed pull request" with "GitHub Actions is not permitted to create ... pull requests" | Repo setting is off — or the **organization** setting overrides it (the repo toggle then 409s) | Settings -> Actions -> General -> enable "Allow GitHub Actions to create and approve pull requests" (repo AND org level; org admins only). Fallback: the signed `publish/<kind>-<version>` branch was already pushed before the failure, so simply open the PR from that branch by hand — the release content is complete and signature-verified |
 | `validate:unified` fails with `no active trusted key for keyId "..."` | The keyId in the secrets has no matching public key in `keys/trusted-keys.json` | Add the public key with that keyId (PR), then re-run |
 | `validate:unified` fails with `signature verification failed` | Private key in the secret does not match the public key in `keys/trusted-keys.json` for that keyId | Fix the secret (or the trusted-keys entry) so the pair matches |
 | Plugin workflow warns `REGISTRY_PUSH_TOKEN secret is not set` | Token missing in the plugin repo | The `.shplugin` + GitHub Release still happen; add the PAT to also update the registry, then re-run the workflow |

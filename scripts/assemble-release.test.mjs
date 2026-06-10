@@ -135,11 +135,18 @@ test('assembles + signs + verifies frontend/scheduler/worker releases', async ()
       '--kind', 'frontend', '--version', '0.2.0', '--channel', 'test',
       '--image', 'ghcr.io/humdek-unibe-ch/selfhelp-frontend:0.2.0', '--digest', `sha256:${'d'.repeat(64)}`,
       '--required-core-range', '>=0.2.0 <0.3.0', '--required-api-version', '0.1.0',
+      '--shared-package-version', '9.9.9',
     ]),
     seed('frontend'),
   );
   assert.equal(fe.kind, 'selfhelp-frontend-release');
   assert.equal(fe.backendCompatibility.requiredApiVersion, '0.1.0');
+  assert.equal(
+    fe.builtFrom.sharedPackageVersion,
+    '9.9.9',
+    'a seeded sharedPackageVersion must not survive an explicit override',
+  );
+  assert.equal(fe.builtFrom.nextStandalone, true, 'other seeded builtFrom fields are carried forward');
   signValidateVerify(fe);
 
   for (const kind of ['scheduler', 'worker']) {

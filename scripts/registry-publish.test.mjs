@@ -84,10 +84,15 @@ test('buildPublishArgs builds frontend/scheduler/worker args from version + owne
       version: '0.2.0',
       channel: 'test',
       digests: { image: `sha256:${'d'.repeat(64)}` },
-      metadata: { requiredCoreRange: '>=0.2.0 <0.3.0', requiredApiVersion: '0.1.0' },
+      metadata: { requiredCoreRange: '>=0.2.0 <0.3.0', requiredApiVersion: '0.1.0', sharedPackageVersion: '9.9.9' },
     });
     assert.equal(args.image, `ghcr.io/humdek-unibe-ch/selfhelp-${kind}:0.2.0`);
     const body = assembleRelease(kind, args, seed(kind));
     assert.equal(body.kind, `selfhelp-${kind}-release`);
+    if (kind === 'frontend') {
+      assert.equal(body.builtFrom.sharedPackageVersion, '9.9.9', 'frontend metadata.sharedPackageVersion lands in builtFrom');
+    } else {
+      assert.equal(args['shared-package-version'], undefined, `${kind} must not receive the frontend-only flag`);
+    }
   }
 });

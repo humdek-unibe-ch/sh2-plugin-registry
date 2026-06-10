@@ -47,7 +47,7 @@ on:
         required: true
         type: string
       metadata:
-        description: 'JSON. core: {"minUpgradeFrom","pluginApi","frontendRange","migrationRange","destructive","php"} ; services: {"requiredCoreRange","requiredApiVersion"}'
+        description: 'JSON. core: {"minUpgradeFrom","pluginApi","frontendRange","migrationRange","destructive","php"} ; services: {"requiredCoreRange","requiredApiVersion"} ; frontend also: {"sharedPackageVersion"}'
         required: false
         type: string
 

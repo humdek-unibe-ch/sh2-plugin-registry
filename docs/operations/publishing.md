@@ -169,7 +169,9 @@ GitHub → **Actions → publish-core-release → Run workflow**, then fill the 
   others: `{"image":"sha256:…"}`.
 - `metadata` *(optional)* — compatibility fields. For `core`:
   `{"minUpgradeFrom","pluginApi","frontendRange","migrationRange","destructive","php"}`;
-  for services: `{"requiredCoreRange","requiredApiVersion"}`.
+  for services: `{"requiredCoreRange","requiredApiVersion"}`; for `frontend`
+  additionally `{"sharedPackageVersion"}` (the `@selfhelp/shared` version the
+  image was built with — overrides the stale seeded `builtFrom` value).
 
 The job runs `scripts/publish-release.mjs`, which chains
 `assemble-release.mjs` → `sign-release.mjs` (with the production key from the
