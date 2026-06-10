@@ -118,12 +118,6 @@ with. It currently contains:
 - `prod` — the production publishing key. Its public half ships as the
   default trusted key on every host (backend `.env.default`
   `SELFHELP_PLUGIN_TRUSTED_KEYS`).
-- `selfhelp-official-2026` — the deterministic **bootstrap/dev key** (derived
-  from a public seed; anyone can reproduce it). The committed `0.1.0` platform
-  releases and early plugin releases were signed with it. After every release
-  document has been re-published with the `prod` key, flip this entry to
-  `"status": "revoked"` — do not revoke it earlier or `validate:unified` will
-  fail on the still-dev-signed documents.
 
 To rotate keys later: generate a new pair, ADD its public key here (keep the
 old one active), switch the CI secrets, wait until everything you care about
