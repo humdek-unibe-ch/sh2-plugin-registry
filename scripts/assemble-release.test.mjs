@@ -4,9 +4,12 @@ SPDX-License-Identifier: MPL-2.0
 */
 /**
  * Unit coverage for assemble-release.mjs: every kind must assemble into a
- * document that, once signed with sign-release.mjs (dev key), passes its full
- * release schema AND verifies against the committed trusted keys — i.e. the
- * exact chain the real publish flow uses (assemble -> sign -> validate:unified).
+ * document that, once signed with sign-release.mjs (dev fixture key), passes
+ * its full release schema AND Ed25519-verifies — the exact canonical chain the
+ * real publish flow uses (assemble -> sign -> validate:unified). The dev
+ * fixture key is intentionally NOT in keys/trusted-keys.json (only `prod` is),
+ * so the test re-derives its public half from the deterministic seed and also
+ * locks in that fixture-signed documents are never production-trusted.
  */
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
@@ -27,6 +30,13 @@ const sodium = require('libsodium-wrappers');
 const SCRIPTS = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(SCRIPTS, '..');
 const trustedKeys = JSON.parse(readFileSync(path.join(ROOT, 'keys', 'trusted-keys.json'), 'utf8'));
+
+// The deterministic dev fixture key sign-release.mjs falls back to (tweetnacl
+// derivation, same as the signer). Public half only; nothing secret.
+const nacl = require('tweetnacl');
+const DEV_KEY_ID = 'selfhelp-dev-fixture';
+const devSeed = createHash('sha256').update('selfhelp-dev-registry-signing-key-v1').digest();
+const devPublicKeyB64 = Buffer.from(nacl.sign.keyPair.fromSeed(new Uint8Array(devSeed)).publicKey).toString('base64');
 
 function canonicalStringify(value) {
   if (value === null) return 'null';
@@ -65,8 +75,11 @@ function signValidateVerify(body) {
     const ok = ajv.compile(schemaFor(signed.kind))(signed);
     assert.ok(ok, `signed ${signed.kind} should pass its full schema: ${JSON.stringify(ajv.errors)}`);
 
-    const key = trustedKeys.keys.find((k) => k.keyId === signed.security.keyId && k.status === 'active');
-    assert.ok(key, `trusted key ${signed.security.keyId} must be active`);
+    assert.equal(signed.security.keyId, DEV_KEY_ID, 'keyless signing must stamp the dev fixture keyId');
+    assert.ok(
+      !trustedKeys.keys.some((k) => k.keyId === signed.security.keyId),
+      'the dev fixture key must NEVER be listed in keys/trusted-keys.json',
+    );
     const clone = { ...signed };
     delete clone.security;
     const payload = canonicalStringify(clone);
@@ -78,9 +91,9 @@ function signValidateVerify(body) {
     const verified = sodium.crypto_sign_verify_detached(
       new Uint8Array(Buffer.from(signed.security.signature, 'base64')),
       new Uint8Array(Buffer.from(payload, 'utf8')),
-      new Uint8Array(Buffer.from(key.publicKey, 'base64')),
+      new Uint8Array(Buffer.from(devPublicKeyB64, 'base64')),
     );
-    assert.ok(verified, 'Ed25519 signature must verify against the trusted key');
+    assert.ok(verified, 'Ed25519 signature must verify against the dev fixture public key');
     return signed;
   } finally {
     rmSync(tmp, { recursive: true, force: true });

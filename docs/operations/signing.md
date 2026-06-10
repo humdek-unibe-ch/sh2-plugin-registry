@@ -74,9 +74,10 @@ node scripts/sign-release.mjs --input releases/<kind>/<id>.json \
   `@shm/registry` re-computes and the PHP `SignedPayloadBuilder` produces.
 - It writes the `security` block `{signature, keyId, signedPayloadSha256}` back
   into the release document.
-- With no key in the environment it falls back to the deterministic **dev** key
-  (the committed fixtures' key). The manager refuses `dev`-keyed releases in
-  production, so use a real key for any `stable` release.
+- With no key in the environment it falls back to the deterministic **dev
+  fixture** key (keyId `selfhelp-dev-fixture`, the manager fixtures' key). That
+  key is not in `keys/trusted-keys.json`, so `validate:unified` rejects
+  fixture-keyed documents — use a real key for any `stable` release.
 
 `scripts/validate-unified.mjs` (`npm run validate:unified`, and the CI
 `build-registry` workflow) re-verifies every signed release against

@@ -296,7 +296,7 @@ change.
 | `validate:unified` fails with `no active trusted key for keyId "..."` | The keyId in the secrets has no matching public key in `keys/trusted-keys.json` | Add the public key with that keyId (PR), then re-run |
 | `validate:unified` fails with `signature verification failed` | Private key in the secret does not match the public key in `keys/trusted-keys.json` for that keyId | Fix the secret (or the trusted-keys entry) so the pair matches |
 | Plugin workflow warns `REGISTRY_PUSH_TOKEN secret is not set` | Token missing in the plugin repo | The `.shplugin` + GitHub Release still happen; add the PAT to also update the registry, then re-run the workflow |
-| Plugin published but signed with `keyId: selfhelp-official-2026` | Plugin repo signing secrets missing, so CI fell back to the dev key | Add `SELFHELP_SIGNING_KEY` + `..._KEY_ID` to the plugin repo, bump the version, re-tag |
+| Plugin published but signed with `keyId: selfhelp-dev-fixture` (or `dev`) | Plugin repo signing secrets missing, so CI fell back to the dev key | Add `SELFHELP_SIGNING_KEY` + `..._KEY_ID` to the plugin repo, bump the version, re-tag |
 | Frontend release fails at "Resolve version" | Tag does not match `package.json` version | Bump `package.json`, push, re-tag |
 | Host says `signature key not trusted (keyId=...)` on plugin install | Host env lacks the public key | Add `SELFHELP_PLUGIN_TRUSTED_KEYS=<keyId>=<base64-public>` on the host and restart PHP |
 | Pages site never updates after merge | GitHub Pages not enabled with the Actions source | Settings -> Pages -> Source = GitHub Actions |

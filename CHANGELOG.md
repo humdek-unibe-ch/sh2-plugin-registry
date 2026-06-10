@@ -29,9 +29,19 @@ serves — those are versioned in their own repositories and pinned per entry.
   Its public half is the same key hosts already trust by default
   (backend `.env.default` `SELFHELP_PLUGIN_TRUSTED_KEYS`). Releases signed
   by CI with `SELFHELP_SIGNING_KEY_ID=prod` now verify in
-  `validate:unified`. The deterministic bootstrap key
-  `selfhelp-official-2026` stays active until every committed release doc
-  is re-signed with `prod`; flip it to `revoked` after that.
+  `validate:unified`.
+
+### Removed
+
+- **Deterministic bootstrap key `selfhelp-official-2026` retired.** Every
+  committed release document (core/frontend/scheduler/worker 0.1.0 and the
+  `sh2-shp-survey-js` 0.1.0/0.2.0 plugin releases) is re-signed with the
+  production `prod` key, and the bootstrap entry is gone from
+  `keys/trusted-keys.json` — `prod` is now the only trusted publisher key.
+  The offline fallback in `scripts/sign-release.mjs` keeps deriving the same
+  deterministic dev keypair but under the honest keyId
+  `selfhelp-dev-fixture`, which is intentionally NOT trusted: fixture-signed
+  documents fail `validate:unified` instead of masquerading as official.
 
 ### Fixed
 

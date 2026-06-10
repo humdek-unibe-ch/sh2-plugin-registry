@@ -17,12 +17,14 @@ SPDX-License-Identifier: MPL-2.0
  * Key selection (same precedence as sign.mjs):
  *   --key <base64-64-byte-secret> + --key-id <id>     (production)
  *   SELFHELP_SIGNING_KEY + SELFHELP_SIGNING_KEY_ID
- *   (default) the DETERMINISTIC DEV key derived from the fixed seed
+ *   (default) the DETERMINISTIC DEV FIXTURE key derived from the fixed seed
  *             'selfhelp-dev-registry-signing-key-v1', keyId
- *             'selfhelp-official-2026'. This is the same dev key the committed
- *             0.1.0 core/frontend releases + the manager fixtures use, so the
- *             signed-offline test/validation path works end-to-end. It is NOT a
- *             production key.
+ *             'selfhelp-dev-fixture'. This is the same dev key the manager
+ *             fixtures use, so the signed-offline test/rehearsal path works
+ *             end-to-end. It is NOT a production key and is NOT listed in
+ *             keys/trusted-keys.json — every committed release document is
+ *             signed with the production `prod` key, and validate:unified
+ *             rejects fixture-keyed documents.
  *
  * Usage:
  *   node scripts/sign-release.mjs --input releases/scheduler/selfhelp-scheduler-0.1.0.json
@@ -41,7 +43,7 @@ const require = createRequire(import.meta.url);
 // verifier only needs interoperable Ed25519 verification, which works fine.
 const nacl = require('tweetnacl');
 
-const DEV_KEY_ID = 'selfhelp-official-2026';
+const DEV_KEY_ID = 'selfhelp-dev-fixture';
 const DEV_SEED_PHRASE = 'selfhelp-dev-registry-signing-key-v1';
 const SECRET_KEY_BYTES = 64;
 

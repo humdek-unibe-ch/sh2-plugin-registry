@@ -49,9 +49,11 @@ plugin, core, frontend, scheduler, and worker release against
 
 Re-sign a release document after editing it with
 `node scripts/sign-release.mjs --input releases/<kind>/<id>.json`. With no
-signing key in the environment it uses the deterministic dev key (the committed
-fixtures' key); production signing passes `--key`/`SELFHELP_SIGNING_KEY`
-+ `--key-id`.
+signing key in the environment it uses the deterministic dev fixture key
+(keyId `selfhelp-dev-fixture`, the manager fixtures' key) — that key is NOT in
+`keys/trusted-keys.json`, so `validate:unified` rejects such documents;
+production signing passes `--key`/`SELFHELP_SIGNING_KEY` + `--key-id`. Every
+committed release document is signed with the production `prod` key.
 
 ## Repository layout
 
