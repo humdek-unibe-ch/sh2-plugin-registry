@@ -1,0 +1,37 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://selfhelp.app/schemas/scheduler-release.schema.json",
+    "title": "SelfHelp scheduler release (signed)",
+    "description": "A signed SelfHelp scheduled-jobs runner release: a ready-built image that runs the per-instance scheduled-jobs loop. Built from the same core source as the backend but pinned and resolved as a first-class artifact so an instance can run a distinct scheduler version. Consumed by sh-manager.",
+    "type": "object",
+    "required": ["kind", "id", "version", "channel", "image", "digest", "backendCompatibility", "security"],
+    "additionalProperties": true,
+    "properties": {
+        "kind": {"const": "selfhelp-scheduler-release"},
+        "id": {"type": "string", "minLength": 1},
+        "version": {"type": "string", "minLength": 1},
+        "channel": {"type": "string", "enum": ["stable", "beta", "nightly", "test"]},
+        "image": {"type": "string", "minLength": 1},
+        "digest": {"type": "string", "minLength": 1},
+        "builtFrom": {"type": "object"},
+        "backendCompatibility": {
+            "type": "object",
+            "required": ["requiredCoreRange"],
+            "properties": {
+                "requiredCoreRange": {"type": "string"},
+                "requiredApiVersion": {"type": "string"}
+            }
+        },
+        "security": {
+            "type": "object",
+            "required": ["signature", "keyId"],
+            "properties": {
+                "signature": {"type": "string", "minLength": 1},
+                "keyId": {"type": "string", "minLength": 1},
+                "signedPayload": {"type": "string"},
+                "signedPayloadSha256": {"type": "string"}
+            }
+        },
+        "blocked": {"type": "boolean"}
+    }
+}

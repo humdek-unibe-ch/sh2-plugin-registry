@@ -5,7 +5,12 @@ SPDX-License-Identifier: MPL-2.0
 
 # sh2-plugin-registry
 
-Official public registry of SelfHelp v2 plugins. Every SelfHelp host ships with this URL as the seeded `humdek-public` plugin source, so admins see the catalogue the moment they open `Admin -> Plugins -> Available`.
+The **one official SelfHelp v2 registry**. It serves both the **plugin catalogue**
+(every SelfHelp host ships with this URL as the seeded `humdek-public` plugin
+source, so admins see the catalogue the moment they open
+`Admin -> Plugins -> Available`) and the signed **platform release** metadata —
+**core**, **frontend**, **scheduler**, and **worker** — consumed by the SelfHelp
+Manager (`sh-manager`). There is no second registry.
 
 > **Site URL:** <https://humdek-unibe-ch.github.io/sh2-plugin-registry/>
 >
@@ -33,18 +38,23 @@ sh2-plugin-registry/
 
 ```bash
 npm install
-npm run validate      # validate registry.json against the schema
-npm run guard:trust   # enforce trust-field rules
-npm run keygen        # generate an Ed25519 keypair (bootstrapping)
+npm run validate         # validate registry.json against the schema
+npm run validate:unified # validate the index + signed core/frontend/scheduler/worker releases and re-verify signatures
+npm run guard:trust      # enforce trust-field rules
+npm run keygen           # generate an Ed25519 keypair (bootstrapping)
 ```
+
+Platform release docs under `releases/<kind>/<id>.json` are signed with
+`node scripts/sign-release.mjs --input <file>` (see the signing guide).
 
 ## Documentation
 
 Full documentation lives in [docs/](docs/README.md):
 
-- Registry layout and entry schema: [docs/reference/registry-layout.md](docs/reference/registry-layout.md)
-- Publishing a plugin and releasing a build: [docs/operations/publishing.md](docs/operations/publishing.md)
-- Signing keys and trust levels: [docs/operations/signing.md](docs/operations/signing.md)
+- Registry layout and entry schema (plugins + core/frontend/scheduler/worker): [docs/reference/registry-layout.md](docs/reference/registry-layout.md)
+- Publishing plugins and platform releases: [docs/operations/publishing.md](docs/operations/publishing.md)
+- Signing keys, release signing, and trust levels: [docs/operations/signing.md](docs/operations/signing.md)
+- Changelog: [CHANGELOG.md](CHANGELOG.md)
 
 ## License
 

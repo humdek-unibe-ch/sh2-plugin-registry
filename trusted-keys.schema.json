@@ -1,0 +1,26 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://selfhelp.app/schemas/trusted-keys.schema.json",
+    "title": "SelfHelp registry trusted keys",
+    "description": "Public Ed25519 keys used to verify signed core/frontend releases. Only the public half is ever published here.",
+    "type": "object",
+    "required": ["schemaVersion", "keys"],
+    "additionalProperties": false,
+    "properties": {
+        "schemaVersion": {"type": "string"},
+        "keys": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["keyId", "publicKey", "algorithm", "status"],
+                "additionalProperties": false,
+                "properties": {
+                    "keyId": {"type": "string", "minLength": 1},
+                    "publicKey": {"type": "string", "minLength": 1, "description": "Base64-encoded Ed25519 public key."},
+                    "algorithm": {"const": "ed25519"},
+                    "status": {"type": "string", "enum": ["active", "revoked"]}
+                }
+            }
+        }
+    }
+}

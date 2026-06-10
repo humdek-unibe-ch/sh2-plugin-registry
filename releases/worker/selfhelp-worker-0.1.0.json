@@ -1,0 +1,19 @@
+{
+  "kind": "selfhelp-worker-release",
+  "id": "selfhelp-worker-0.1.0",
+  "version": "0.1.0",
+  "channel": "stable",
+  "image": "ghcr.io/humdek-unibe-ch/selfhelp-worker:0.1.0",
+  "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+  "builtFrom": {
+    "coreVersion": "0.1.0"
+  },
+  "backendCompatibility": {
+    "requiredCoreRange": ">=0.1.0 <0.2.0"
+  },
+  "security": {
+    "signature": "JYFJII7kmJaVcxfuHFkGi3E4YmD0YNFkvsX9aBMScwSQNI1RWRm5SnsZpX3HWuxha5WUNi8eLRUTgZuG5xAVAw==",
+    "keyId": "selfhelp-official-2026",
+    "signedPayloadSha256": "sha256:9d8581be3b8c8d24e4a461daf05381a06d4d231ba7abd0ade608e514617dd1fb"
+  }
+}

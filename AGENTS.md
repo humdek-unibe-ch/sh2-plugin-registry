@@ -14,11 +14,15 @@ SelfHelp host ships with this URL pre-seeded as the system-managed
 This repo is **static content + JSON validation + signing tooling**.
 It contains:
 
-- the plugin index (`registry.json`),
+- the unified index (`registry.json`) — release refs for plugins AND platform
+  components (`core`/`frontend`/`scheduler`/`worker`), one ref per version,
+- per-version signed release docs
+  (`releases/{plugins,core,frontend,scheduler,worker}/<id>-<version>.json`),
 - per-version manifest snapshots (`manifests/<id>-<version>.json`),
-- per-version runtime artifacts (`artifacts/<id>-<version>/...`),
-- the canonical Ed25519 signing CLI (`scripts/sign.mjs`),
-- the canonical registry-entry builder (`scripts/build-registry-entry.mjs`),
+- per-version `.shplugin` install artifacts (`artifacts/<id>-<version>.shplugin`),
+- the canonical Ed25519 signing CLIs (`scripts/sign.mjs` for the `.shplugin`
+  payload, `scripts/sign-release.mjs` for release docs),
+- the plugin-release builder (`scripts/build-plugin-release.mjs`),
 - the trust-field guard (`scripts/guard-trust-fields.mjs`),
 - one CI workflow that validates and republishes the static site
   (`.github/workflows/build-registry.yml`).
@@ -123,16 +127,16 @@ These rules apply to every documentation change in active SelfHelp2 repositories
 
 ## Trust-level rules
 
-`registry.schema.json` requires every `pluginEntry` to declare
-`trustLevel ∈ {official, reviewed, untrusted}`. The trust-field guard
-adds the following semantic constraints:
+Each plugin release document (`releases/plugins/<id>-<version>.json`) declares
+`official: true|false`, derived from the manifest `security.trustLevel`. The
+trust-field guard (`scripts/guard-trust-fields.mjs`) follows every `plugins[]`
+ref and adds the following semantic constraints to an `official` release:
 
-- For `trustLevel ∈ {official, reviewed}`:
-  - `keyId` MUST NOT be `dev` and MUST NOT be empty.
-  - `signature`, `signedPayload`, `keyId` MUST NOT contain the literal
-    substring `PLACEHOLDER`.
-  - `signature` and `signedPayload` MUST be non-empty.
-  - `checksums.frontendEsm` MUST NOT be the all-zero placeholder.
+- `security.keyId` MUST NOT be `dev` and MUST NOT be empty.
+- `security.signature` and `security.keyId` MUST NOT contain the literal
+  substring `PLACEHOLDER`.
+- `security.signature` MUST be non-empty.
+- `artifacts.sha256` MUST NOT be the all-zero placeholder.
 
 If a real production signing key is not yet wired up, declare entries
 as `trustLevel: "untrusted"`. Hosts running with
@@ -145,20 +149,24 @@ bootstrap phase.
 The plugin author runs the plugin's own `scripts/publish-to-registry.mjs`
 which:
 
-1. Builds the `.shplugin`.
-2. Computes SHA-256 of `plugin.esm.js` + `plugin.css`.
-3. Calls `selfhelp-plugin-build-registry-entry` (this repo,
-   `scripts/build-registry-entry.mjs`) which assembles the canonical
-   signed payload via `sign.mjs build-payload`, signs it via
-   `sign.mjs sign`, and emits a ready-to-splice `pluginEntry` JSON.
-4. Copies the manifest to `manifests/<plugin-id>-<version>.json`,
-   the runtime artifacts to `artifacts/<plugin-id>-<version>/`, and
-   updates `registry.json`.
+1. Builds the `.shplugin` (the install artifact the backend downloads + extracts;
+   the backend self-hosts the runtime, so loose ESM bundles are no longer
+   published here).
+2. Computes SHA-256 of the `.shplugin`.
+3. Calls this repo's `scripts/build-plugin-release.mjs` to map the manifest onto
+   a `plugin-release.schema.json` document (pinning the archive sha256), then
+   `scripts/sign-release.mjs` to Ed25519-sign it into
+   `releases/plugins/<plugin-id>-<version>.json`.
+4. Copies the manifest to `manifests/<plugin-id>-<version>.json`, the `.shplugin`
+   to `artifacts/<plugin-id>-<version>.shplugin`, and adds the release **ref**
+   (`{id, version, channel, releaseUrl}`) to `registry.json` `plugins[]`
+   (multi-version: keeps every other version, replaces only the same id+version).
 5. Commits + pushes — this repo's workflow republishes the static
    site.
 
 The author never edits files in this repo manually for normal
-publishes.
+publishes. A plugin with several published versions has several
+`plugins[]` refs; the CMS resolves the newest version compatible with each host.
 
 ## Validation commands
 

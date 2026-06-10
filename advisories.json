@@ -1,0 +1,18 @@
+{
+    "schemaVersion": "1.0",
+    "advisories": [
+        {
+            "id": "SHSA-2026-0001",
+            "severity": "high",
+            "affected": [
+                {"kind": "core", "id": "selfhelp-core", "versions": ">=0.1.0-rc.1 <0.1.0-rc.2"}
+            ],
+            "fixed": [
+                {"kind": "core", "id": "selfhelp-core", "version": "0.1.0-rc.2"}
+            ],
+            "recommendedAction": "Update SelfHelp core to 0.1.0-rc.2 or newer.",
+            "blocked": true,
+            "detailsUrl": "https://github.com/humdek-unibe-ch/sh-selfhelp_backend/security/advisories"
+        }
+    ]
+}

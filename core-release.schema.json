@@ -1,0 +1,90 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://selfhelp.app/schemas/core-release.schema.json",
+    "title": "SelfHelp core release (signed)",
+    "description": "A signed SelfHelp core release: ready-built backend/worker/scheduler image set with compatibility + migration metadata. Consumed by sh-manager. See docs/reference/registry-layout.md.",
+    "type": "object",
+    "required": ["kind", "id", "version", "channel", "minimumDirectUpgradeFrom", "pluginApiVersion", "backend", "worker", "scheduler", "frontendCompatibility", "database", "security"],
+    "additionalProperties": true,
+    "properties": {
+        "kind": {"const": "selfhelp-core-release"},
+        "id": {"type": "string", "minLength": 1},
+        "version": {"type": "string", "minLength": 1},
+        "channel": {"type": "string", "enum": ["stable", "beta", "nightly", "test"]},
+        "releasedAt": {"type": "string"},
+        "minimumDirectUpgradeFrom": {"type": "string", "minLength": 1},
+        "pluginApiVersion": {"type": "string", "minLength": 1},
+        "backend": {"$ref": "#/$defs/imageRef"},
+        "worker": {"$ref": "#/$defs/imageRef"},
+        "scheduler": {"$ref": "#/$defs/imageRef"},
+        "frontendCompatibility": {
+            "type": "object",
+            "required": ["requiredFrontendRange"],
+            "properties": {"requiredFrontendRange": {"type": "string"}}
+        },
+        "database": {
+            "type": "object",
+            "required": ["migrationRange", "destructive", "requiresBackup", "manualConfirmationRequired"],
+            "properties": {
+                "migrationRange": {"type": "string"},
+                "destructive": {"type": "boolean"},
+                "requiresBackup": {"type": "boolean"},
+                "manualConfirmationRequired": {"type": "boolean"},
+                "minimumSafeRollbackPoint": {"type": "string"},
+                "automaticRollback": {"type": "string"}
+            }
+        },
+        "runtime": {"$ref": "#/$defs/runtimeServicePolicy"},
+        "security": {"$ref": "#/$defs/signature"},
+        "blocked": {"type": "boolean"}
+    },
+    "$defs": {
+        "runtimeServiceRange": {
+            "type": "object",
+            "required": ["supportedVersions", "recommendedImage"],
+            "properties": {
+                "supportedVersions": {"type": "string", "minLength": 1},
+                "minimumRequired": {"type": "string"},
+                "recommendedVersion": {"type": "string"},
+                "recommendedImage": {"type": "string", "minLength": 1},
+                "recommendedDigest": {"type": "string"},
+                "updateRequired": {"type": "boolean"},
+                "majorUpgradeRequiresManualApproval": {"type": "boolean"}
+            }
+        },
+        "runtimeServicePolicy": {
+            "type": "object",
+            "required": ["mysql", "redis", "mercure"],
+            "properties": {
+                "php": {
+                    "type": "object",
+                    "required": ["backendImagePhpVersion"],
+                    "properties": {"backendImagePhpVersion": {"type": "string", "minLength": 1}}
+                },
+                "mysql": {"$ref": "#/$defs/runtimeServiceRange"},
+                "redis": {"$ref": "#/$defs/runtimeServiceRange"},
+                "mercure": {"$ref": "#/$defs/runtimeServiceRange"},
+                "traefik": {"$ref": "#/$defs/runtimeServiceRange"}
+            }
+        },
+        "imageRef": {
+            "type": "object",
+            "required": ["image", "digest"],
+            "properties": {
+                "image": {"type": "string", "minLength": 1},
+                "digest": {"type": "string", "minLength": 1},
+                "phpVersion": {"type": "string"}
+            }
+        },
+        "signature": {
+            "type": "object",
+            "required": ["signature", "keyId"],
+            "properties": {
+                "signature": {"type": "string", "minLength": 1},
+                "keyId": {"type": "string", "minLength": 1},
+                "signedPayload": {"type": "string"},
+                "signedPayloadSha256": {"type": "string"}
+            }
+        }
+    }
+}

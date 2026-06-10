@@ -7,20 +7,25 @@
     "type": "module",
     "bin": {
         "selfhelp-plugin-sign": "scripts/sign.mjs",
-        "selfhelp-plugin-build-registry-entry": "scripts/build-registry-entry.mjs"
+        "selfhelp-plugin-build-release": "scripts/build-plugin-release.mjs"
     },
     "scripts": {
         "sign": "node scripts/sign.mjs",
         "keygen": "node scripts/sign.mjs keygen",
-        "build-entry": "node scripts/build-registry-entry.mjs",
+        "build-plugin-release": "node scripts/build-plugin-release.mjs",
+        "assemble": "node scripts/assemble-release.mjs",
+        "test": "node --test",
         "validate": "ajv validate -c ajv-formats -s registry.schema.json -d registry.json --strict=false",
+        "validate:unified": "node scripts/validate-unified.mjs",
         "guard:trust": "node scripts/guard-trust-fields.mjs"
     },
     "devDependencies": {
+        "ajv": "^8.17.1",
         "ajv-cli": "^5.0.0",
         "ajv-formats": "^3.0.1"
     },
     "dependencies": {
-        "libsodium-wrappers": "^0.7.13"
+        "libsodium-wrappers": "^0.7.13",
+        "tweetnacl": "^1.0.3"
     }
 }
