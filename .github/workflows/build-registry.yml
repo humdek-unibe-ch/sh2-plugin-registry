@@ -63,20 +63,41 @@ jobs:
             - name: Guard registry trust fields
               run: node scripts/guard-trust-fields.mjs registry.json
 
+            # Same-branch-or-main: coordinated cross-repo work happens on
+            # equally named feature branches. Compare the vendored schema
+            # against the backend branch matching this build's branch name
+            # when it exists, falling back to main. An explicit
+            # HOST_SCHEMA_URL repository variable still overrides both. See
+            # sh-selfhelp_backend/docs/developer/branch-merge-order.md.
             - name: Verify plugin-manifest.schema.json is in sync with the host
               env:
-                  HOST_SCHEMA_URL: ${{ vars.HOST_SCHEMA_URL || 'https://raw.githubusercontent.com/humdek-unibe-ch/sh-selfhelp_backend/main/docs/plugins/plugin-manifest.schema.json' }}
+                  HOST_SCHEMA_URL: ${{ vars.HOST_SCHEMA_URL }}
               run: |
                   set -euo pipefail
-                  curl -fsSL "$HOST_SCHEMA_URL" -o /tmp/host-plugin-manifest.schema.json
+                  RAW_BASE="https://raw.githubusercontent.com/humdek-unibe-ch/sh-selfhelp_backend"
+                  SCHEMA_PATH="docs/plugins/plugin-manifest.schema.json"
+                  BRANCH="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
+                  if [ -n "${HOST_SCHEMA_URL:-}" ]; then
+                      url="$HOST_SCHEMA_URL"
+                      echo "Using HOST_SCHEMA_URL override: $url"
+                      curl -fsSL "$url" -o /tmp/host-plugin-manifest.schema.json
+                  elif [ -n "$BRANCH" ] && [ "$BRANCH" != "main" ] \
+                       && curl -fsSL "$RAW_BASE/$BRANCH/$SCHEMA_PATH" -o /tmp/host-plugin-manifest.schema.json 2>/dev/null; then
+                      url="$RAW_BASE/$BRANCH/$SCHEMA_PATH"
+                      echo "Comparing against host branch '$BRANCH' (same-branch-or-main)."
+                  else
+                      url="$RAW_BASE/main/$SCHEMA_PATH"
+                      echo "Comparing against host main."
+                      curl -fsSL "$url" -o /tmp/host-plugin-manifest.schema.json
+                  fi
                   local_hash="$(sha256sum plugin-manifest.schema.json | awk '{print $1}')"
                   host_hash="$(sha256sum /tmp/host-plugin-manifest.schema.json | awk '{print $1}')"
                   if [ "$local_hash" != "$host_hash" ]; then
-                      echo "::error::plugin-manifest.schema.json drifted from the canonical host copy ($HOST_SCHEMA_URL)."
+                      echo "::error::plugin-manifest.schema.json drifted from the canonical host copy ($url)."
                       diff plugin-manifest.schema.json /tmp/host-plugin-manifest.schema.json || true
                       exit 1
                   fi
-                  echo "plugin-manifest.schema.json is byte-identical to the canonical host copy."
+                  echo "plugin-manifest.schema.json is byte-identical to the canonical host copy ($url)."
 
             - name: Validate plugin manifests (if any)
               run: |
