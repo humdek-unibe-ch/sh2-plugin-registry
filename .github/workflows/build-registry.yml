@@ -120,11 +120,23 @@ jobs:
             url: ${{ steps.deployment.outputs.page_url }}
         steps:
             - uses: actions/checkout@v6
+              with:
+                  # Full history: releases-meta.json derives each release's
+                  # publish date from the commit that first added its file.
+                  fetch-depth: 0
+
+            - uses: actions/setup-node@v6
+              with:
+                  node-version: "22"
 
             - name: Prepare site
               run: |
                   mkdir -p _site
                   rsync -a --exclude='.git' --exclude='.github' --exclude='_site' ./ _site/
+                  # Publish-date sidecar: index.html falls back to these
+                  # git-derived dates for release docs that predate the
+                  # releasedAt field (signed docs cannot be backfilled).
+                  node scripts/build-releases-meta.mjs --out _site/releases-meta.json
 
             # This repo still needs GitHub Pages enabled in repository
             # settings with "GitHub Actions" as the build source. The

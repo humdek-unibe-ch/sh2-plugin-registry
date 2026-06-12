@@ -374,12 +374,23 @@
       return fetchJson(url);
     }
 
-    /** releasedAt -> "12 Jun 2026" (older docs predate the field -> null). */
+    /** releasedAt -> "12 Jun 2026" (null when missing/invalid). */
     function formatDate(iso) {
       if (!iso) return null;
       const t = Date.parse(iso);
       if (Number.isNaN(t)) return null;
-      return new Date(t).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+      return new Date(t).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+    }
+
+    /** ISO -> "12 Jun 2026, 10:22 UTC" (null when missing/invalid). */
+    function formatDateTime(iso) {
+      if (!iso) return null;
+      const t = Date.parse(iso);
+      if (Number.isNaN(t)) return null;
+      const d = new Date(t);
+      return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
+        + ', ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' })
+        + ' UTC';
     }
 
     function dateHtml(iso) {
@@ -388,12 +399,12 @@
     }
 
     /**
-     * Newest-first version order: releasedAt date desc when both docs carry
-     * distinct dates, otherwise semver desc (older docs predate releasedAt).
+     * Newest-first version order: publish date desc when both versions carry
+     * distinct dates, otherwise semver desc.
      */
     function versionCmp(a, b) {
-      const da = a.doc && a.doc.releasedAt ? Date.parse(a.doc.releasedAt) : NaN;
-      const db = b.doc && b.doc.releasedAt ? Date.parse(b.doc.releasedAt) : NaN;
+      const da = a.releasedAt ? Date.parse(a.releasedAt) : NaN;
+      const db = b.releasedAt ? Date.parse(b.releasedAt) : NaN;
       if (!Number.isNaN(da) && !Number.isNaN(db) && da !== db) return db - da;
       return String(b.ref.version).localeCompare(String(a.ref.version), undefined, { numeric: true });
     }
@@ -401,7 +412,7 @@
     function newestTimestamp(group) {
       let max = 0;
       for (const v of group.versions) {
-        const t = v.doc && v.doc.releasedAt ? Date.parse(v.doc.releasedAt) : NaN;
+        const t = v.releasedAt ? Date.parse(v.releasedAt) : NaN;
         if (!Number.isNaN(t) && t > max) max = t;
       }
       return max;
@@ -504,14 +515,14 @@
     function historyRow(group, v) {
       const releaseHref = absUrl(v.ref.releaseUrl);
       const archiveHref = group.kind === 'plugin' ? absUrl(v.doc && v.doc.artifacts && v.doc.artifacts.archiveUrl) : null;
-      const date = formatDate(v.doc && v.doc.releasedAt);
+      const date = formatDate(v.releasedAt);
       const links = [
         releaseHref ? '<a href="' + esc(releaseHref) + '">Release document</a>' : '',
         archiveHref ? '<a href="' + esc(archiveHref) + '">Download</a>' : '',
       ].filter(Boolean).join(' · ');
       return '<li>'
         + '<span class="v">' + esc(v.ref.version) + '</span>'
-        + (date ? '<span title="' + esc(v.doc.releasedAt) + '">' + esc(date) + '</span>' : '')
+        + (date ? '<span title="' + esc(v.releasedAt) + '">' + esc(date) + '</span>' : '')
         + (v.ref.channel ? '<span class="tag">' + esc(v.ref.channel) + '</span>' : '')
         + (v.ref.blocked ? '<span class="tag blocked">blocked</span>' : '')
         + (links ? '<span>' + links + '</span>' : '')
@@ -553,7 +564,7 @@
             </div>
             <div class="version-col">
               <span class="version">${esc(newest.ref.version || 'unknown')}</span>
-              ${dateHtml(newest.doc && newest.doc.releasedAt)}
+              ${dateHtml(newest.releasedAt)}
             </div>
           </div>
           ${body || ''}
@@ -636,11 +647,19 @@
       worker: { title: 'SelfHelp Worker', sub: 'standalone worker release ref (image also ships with core)' },
     };
 
-    async function loadVersions(refs) {
-      const versions = await Promise.all((Array.isArray(refs) ? refs : []).map(async (ref) => ({
-        ref,
-        doc: await fetchJson(absUrl(ref.releaseUrl)),
-      })));
+    async function loadVersions(refs, releasesMeta) {
+      const versions = await Promise.all((Array.isArray(refs) ? refs : []).map(async (ref) => {
+        const doc = await fetchJson(absUrl(ref.releaseUrl));
+        return {
+          ref,
+          doc,
+          // The signed document's own releasedAt wins. The git-derived
+          // releases-meta.json sidecar (generated at Pages build time) covers
+          // docs published before the field existed — they are signed, so the
+          // date cannot be backfilled into the documents themselves.
+          releasedAt: (doc && doc.releasedAt) || (releasesMeta && releasesMeta[ref.releaseUrl]) || null,
+        };
+      }));
       versions.sort(versionCmp);
       return versions;
     }
@@ -651,16 +670,21 @@
         return response.json();
       })
       .then(async (data) => {
-        publishedAt.textContent = 'Published: ' + (data.publishedAt || 'unknown');
+        publishedAt.textContent = 'Published: ' + (formatDateTime(data.publishedAt) || data.publishedAt || 'unknown');
+        if (data.publishedAt) publishedAt.title = data.publishedAt;
         state.baseUrl = typeof data.baseUrl === 'string' && data.baseUrl !== ''
           ? (data.baseUrl.endsWith('/') ? data.baseUrl : data.baseUrl + '/')
           : null;
+
+        // Optional sidecar with git-derived publish dates (absent on local
+        // previews — cards then simply omit the date for legacy docs).
+        const releasesMeta = (await fetchJson(absUrl('releases-meta.json'))) || {};
 
         const groups = [];
 
         // Platform: one group per component that has at least one release ref.
         for (const kind of ['core', 'frontend', 'scheduler', 'worker']) {
-          const versions = await loadVersions(data[kind]);
+          const versions = await loadVersions(data[kind], releasesMeta);
           if (versions.length === 0) continue;
           const meta = PLATFORM_META[kind];
           groups.push({ section: 'platform', kind, id: kind, title: meta.title, sub: meta.sub, versions });
@@ -674,7 +698,7 @@
           byId.get(ref.id).push(ref);
         }
         for (const [id, refs] of byId) {
-          const versions = await loadVersions(refs);
+          const versions = await loadVersions(refs, releasesMeta);
           if (versions.length === 0) continue;
           const newest = versions[0];
           const manifest = newest.doc && newest.doc.artifacts && newest.doc.artifacts.manifestUrl

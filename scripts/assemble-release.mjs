@@ -25,7 +25,12 @@ SPDX-License-Identifier: MPL-2.0
  *   --version <semver>                       release version (required)
  *   --channel stable|beta|nightly|test       default: inherited / `stable`
  *   --id <id>                                default: selfhelp-<kind>-<version>
- *   --released-at <iso8601>                  default: inherited / now (core only)
+ *   --released-at <iso8601>                  default: now (every kind). A seeded
+ *                                            releasedAt is inherited ONLY when
+ *                                            re-assembling the SAME version —
+ *                                            a new version always gets a fresh
+ *                                            timestamp so the registry shows
+ *                                            real publish dates.
  *   --from <release.json>                    seed unchanged fields from an
  *                                            existing release (its `security`
  *                                            block is dropped); flags override
@@ -100,6 +105,22 @@ export function assembleRelease(kindArg, args, seedRaw = {}) {
   return body;
 }
 
+/**
+ * Publish timestamp for the assembled document. Explicit flag wins; a seeded
+ * value is honoured only when the seed IS the same version being re-assembled
+ * (re-sign / repair). Seeding a NEW version from an old release must NOT carry
+ * the old date forward — that is how every 0.1.x core release ended up showing
+ * the 0.1.0 publish date in the registry UI.
+ */
+function releasedAt(args, seed, version) {
+  const explicit = str(args['released-at']);
+  if (explicit) return explicit;
+  if (seed.version === version && typeof seed.releasedAt === 'string' && seed.releasedAt !== '') {
+    return seed.releasedAt;
+  }
+  return new Date().toISOString();
+}
+
 function buildCore(args, seed) {
   const version = required(args, 'version');
   return prune({
@@ -107,7 +128,7 @@ function buildCore(args, seed) {
     id: str(args.id) || `selfhelp-core-${version}`,
     version,
     channel: str(args.channel) || seed.channel || 'stable',
-    releasedAt: str(args['released-at']) || seed.releasedAt || new Date().toISOString(),
+    releasedAt: releasedAt(args, seed, version),
     minimumDirectUpgradeFrom: str(args['min-upgrade-from']) || seed.minimumDirectUpgradeFrom,
     pluginApiVersion: str(args['plugin-api']) || seed.pluginApiVersion,
     backend: imageRef(args, 'backend', seed.backend, str(args.php) || seed.backend?.phpVersion),
@@ -141,6 +162,7 @@ function buildFrontend(args, seed) {
     id: str(args.id) || `selfhelp-frontend-${version}`,
     version,
     channel: str(args.channel) || seed.channel || 'stable',
+    releasedAt: releasedAt(args, seed, version),
     image: str(args.image) || seed.image,
     digest: str(args.digest) || seed.digest,
     ...(Object.keys(builtFrom).length ? { builtFrom } : {}),
@@ -160,6 +182,7 @@ function buildService(kind, args, seed) {
     id: str(args.id) || `selfhelp-${idPrefix}-${version}`,
     version,
     channel: str(args.channel) || seed.channel || 'stable',
+    releasedAt: releasedAt(args, seed, version),
     image: str(args.image) || seed.image,
     digest: str(args.digest) || seed.digest,
     ...(seed.builtFrom ? { builtFrom: seed.builtFrom } : {}),
