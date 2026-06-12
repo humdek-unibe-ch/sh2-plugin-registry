@@ -12,6 +12,33 @@ This file tracks the **registry content and tooling** (schemas, scripts, layout,
 trust model), not the versions of the individual plugins or platform releases it
 serves — those are versioned in their own repositories and pinned per entry.
 
+## [Unreleased]
+
+## [1.0.2] - 2026-06-12
+
+### Added
+
+- **`releasedAt` is stamped on every platform release kind.**
+  `assemble-release.mjs` now writes the publish timestamp into frontend /
+  scheduler / worker documents too (previously core-only), and the
+  frontend/scheduler/worker schemas document the optional field. A seeded
+  (`--from`) `releasedAt` is inherited only when re-assembling the **same**
+  version; assembling a new version from an old seed gets a fresh timestamp
+  (this is why every 0.1.x core release displayed the 0.1.0 publish date).
+- **Publish dates for already-published (signed) release docs.** The Pages
+  build generates a `releases-meta.json` sidecar
+  (`scripts/build-releases-meta.mjs`) mapping each `releases/**.json` file to
+  the date of the commit that first added it. `index.html` falls back to it
+  whenever a release document carries no `releasedAt` of its own (signed docs
+  cannot be backfilled without invalidating their Ed25519 signature), so
+  every version row and card now shows when it was published.
+
+### Changed
+
+- **Catalog header `Published:` timestamp is now human-readable**
+  (`12 Jun 2026, 10:22 UTC` instead of the raw ISO string; the ISO value
+  stays in the tooltip). All dates on the page render in UTC.
+
 ## [1.0.1] - 2026-06-12
 
 ### Added

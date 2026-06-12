@@ -1,7 +1,7 @@
 {
     "name": "@selfhelp/plugin-registry-scripts",
     "private": true,
-    "version": "1.0.0",
+    "version": "1.0.2",
     "description": "SelfHelp plugin registry tooling: canonical signed-payload builder + Ed25519 signer reused by every plugin's publish workflow.",
     "license": "MPL-2.0",
     "type": "module",
