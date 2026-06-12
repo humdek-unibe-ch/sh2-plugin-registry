@@ -56,6 +56,14 @@ test('buildPluginRelease maps the manifest onto a schema-valid release document'
   assert.equal(release.security, undefined);
 });
 
+test('buildPluginRelease stamps releasedAt (overridable, defaults to now)', () => {
+  const pinned = buildPluginRelease(manifest(), { archiveSha256: SHA, baseUrl: BASE, releasedAt: '2026-06-12T08:00:00Z' });
+  assert.equal(pinned.releasedAt, '2026-06-12T08:00:00Z');
+  const stamped = buildPluginRelease(manifest(), { archiveSha256: SHA, baseUrl: BASE });
+  // Default is "now" in ISO-8601; assert shape, not the exact instant.
+  assert.match(stamped.releasedAt, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+});
+
 test('buildPluginRelease marks a non-official manifest as official:false', () => {
   const release = buildPluginRelease(manifest({ security: { trustLevel: 'reviewed' } }), { archiveSha256: SHA, baseUrl: BASE });
   assert.equal(release.official, false);

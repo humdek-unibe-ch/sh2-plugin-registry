@@ -68,6 +68,50 @@
       padding: 8px 12px;
       background: #fff;
     }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+      margin-top: 24px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--paper);
+    }
+    .toolbar input[type="search"] {
+      flex: 1 1 240px;
+      min-width: 200px;
+      padding: 10px 14px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+      color: var(--ink);
+      font: 0.95rem/1.2 system-ui, sans-serif;
+    }
+    .toolbar input[type="search"]:focus {
+      outline: 2px solid var(--accent-soft);
+      border-color: var(--accent);
+    }
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .chip {
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--muted);
+      font: 600 0.85rem/1.1 system-ui, sans-serif;
+      cursor: pointer;
+    }
+    .chip.active {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
     .section-title {
       margin: 36px 0 0;
       font-size: 1.6rem;
@@ -105,13 +149,23 @@
       color: var(--muted);
       font: 0.85rem/1.4 system-ui, sans-serif;
     }
-    .version {
+    .version-col {
+      text-align: right;
       white-space: nowrap;
+    }
+    .version {
+      display: inline-block;
       padding: 7px 10px;
       border-radius: 999px;
       background: var(--accent-soft);
       color: var(--accent);
       font: 600 0.95rem/1.1 system-ui, sans-serif;
+    }
+    .vdate {
+      display: block;
+      margin-top: 6px;
+      color: var(--muted);
+      font: 0.8rem/1.2 system-ui, sans-serif;
     }
     .desc {
       margin: 0 0 16px;
@@ -158,7 +212,7 @@
       font-size: 0.95rem;
       line-height: 1.7;
     }
-    .reqs code, .images code {
+    .reqs code, .images code, .history code {
       font: 0.85rem/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       background: #f6f1e4;
       border-radius: 6px;
@@ -176,6 +230,40 @@
       flex-wrap: wrap;
       gap: 14px;
       font: 600 0.95rem/1.2 system-ui, sans-serif;
+    }
+    .history {
+      margin-top: 16px;
+      border-top: 1px dashed var(--line);
+      padding-top: 12px;
+    }
+    .history h3 {
+      margin: 0 0 8px;
+      font: 700 0.82rem/1.1 system-ui, sans-serif;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .history ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    .history li {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 10px;
+      padding: 6px 0;
+      font: 0.9rem/1.5 system-ui, sans-serif;
+      color: var(--muted);
+    }
+    .history .v {
+      font-weight: 700;
+      color: var(--ink);
+    }
+    .history .tag {
+      padding: 2px 8px;
+      font-size: 0.72rem;
     }
     a {
       color: var(--accent);
@@ -213,21 +301,28 @@
       </div>
     </section>
 
+    <div class="toolbar" hidden id="toolbar">
+      <input type="search" id="search" placeholder="Search by id, name, or version..." aria-label="Search releases by id, name, or version">
+      <div class="chips" id="channel-chips" role="group" aria-label="Filter by channel"></div>
+    </div>
+
     <h2 class="section-title">Platform releases</h2>
     <p class="section-sub">
-      Signed Docker image releases installed and updated by the SelfHelp Manager.
-      Digests below are the exact images a manager verifies before pulling.
+      Signed Docker image releases installed and updated by the SelfHelp Manager,
+      one card per component with its newest release expanded and older versions
+      listed below. Digests are the exact images a manager verifies before pulling.
     </p>
     <section id="platform-list" class="grid" aria-live="polite"></section>
-    <section id="platform-empty" class="empty" hidden>No platform releases are currently published.</section>
+    <section id="platform-empty" class="empty" hidden></section>
 
     <h2 class="section-title">Plugins</h2>
     <p class="section-sub">
-      Installable CMS plugins. Each version states the SelfHelp core and plugin-API
-      ranges it requires; hosts enforce these during install and core updates.
+      Installable CMS plugins, one card per plugin. Each version states the SelfHelp
+      core and plugin-API ranges it requires; hosts enforce these during install and
+      core updates.
     </p>
     <section id="plugin-list" class="grid" aria-live="polite"></section>
-    <section id="plugin-empty" class="empty" hidden>No plugins are currently published.</section>
+    <section id="plugin-empty" class="empty" hidden></section>
 
     <section id="error" class="error" hidden>Failed to load registry.json.</section>
   </main>
@@ -239,6 +334,12 @@
     const pluginEmpty = document.getElementById('plugin-empty');
     const error = document.getElementById('error');
     const publishedAt = document.getElementById('published-at');
+    const toolbar = document.getElementById('toolbar');
+    const searchInput = document.getElementById('search');
+    const channelChips = document.getElementById('channel-chips');
+
+    /** All loaded groups + the active filters; render() projects this state. */
+    const state = { groups: [], query: '', channel: 'all', baseUrl: null };
 
     function esc(value) {
       return String(value ?? '')
@@ -259,6 +360,59 @@
       return fetch(url, { cache: 'no-store' })
         .then((r) => (r.ok ? r.json() : null))
         .catch(() => null);
+    }
+
+    /**
+     * Release docs carry ABSOLUTE artifact URLs under the production baseUrl.
+     * When this page is previewed locally (or on a fork) those files live next
+     * to it, so fetch the registry-relative copy instead of the live site.
+     */
+    function fetchRegistryJson(url) {
+      if (url && state.baseUrl && url.startsWith(state.baseUrl)) {
+        return fetchJson(absUrl(url.slice(state.baseUrl.length))).then((doc) => doc ?? fetchJson(url));
+      }
+      return fetchJson(url);
+    }
+
+    /** releasedAt -> "12 Jun 2026" (older docs predate the field -> null). */
+    function formatDate(iso) {
+      if (!iso) return null;
+      const t = Date.parse(iso);
+      if (Number.isNaN(t)) return null;
+      return new Date(t).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+
+    function dateHtml(iso) {
+      const text = formatDate(iso);
+      return text ? '<span class="vdate" title="' + esc(iso) + '">' + esc(text) + '</span>' : '';
+    }
+
+    /**
+     * Newest-first version order: releasedAt date desc when both docs carry
+     * distinct dates, otherwise semver desc (older docs predate releasedAt).
+     */
+    function versionCmp(a, b) {
+      const da = a.doc && a.doc.releasedAt ? Date.parse(a.doc.releasedAt) : NaN;
+      const db = b.doc && b.doc.releasedAt ? Date.parse(b.doc.releasedAt) : NaN;
+      if (!Number.isNaN(da) && !Number.isNaN(db) && da !== db) return db - da;
+      return String(b.ref.version).localeCompare(String(a.ref.version), undefined, { numeric: true });
+    }
+
+    function newestTimestamp(group) {
+      let max = 0;
+      for (const v of group.versions) {
+        const t = v.doc && v.doc.releasedAt ? Date.parse(v.doc.releasedAt) : NaN;
+        if (!Number.isNaN(t) && t > max) max = t;
+      }
+      return max;
+    }
+
+    /** Group order: newest release date desc; undated groups last, then by title. */
+    function groupCmp(a, b) {
+      const ta = newestTimestamp(a);
+      const tb = newestTimestamp(b);
+      if (ta !== tb) return tb - ta;
+      return String(a.title).localeCompare(String(b.title));
     }
 
     function tagsHtml(entry, extra) {
@@ -286,10 +440,23 @@
       return esc(label) + ': <code>' + esc(ref.image) + '</code> <code title="' + esc(ref.digest || '') + '">' + esc(shortDigest(ref.digest)) + '</code>';
     }
 
-    // --- Platform cards (core / frontend / scheduler / worker) --------------
+    function noDetail() {
+      return '<p class="desc">Release details could not be loaded; see the linked release document.</p>';
+    }
 
-    function coreCard(ref, doc) {
-      const reqs = doc ? reqsHtml([
+    // --- Newest-release detail bodies (per group kind) -----------------------
+
+    function coreBody(doc) {
+      if (!doc) return noDetail();
+      const db = doc.database ? '<p class="desc">Database migrations: <code>' + esc(doc.database.migrationRange) + '</code>'
+        + (doc.database.destructive ? ' — <strong>destructive</strong> (backup required, manual confirmation)' : ' — non-destructive')
+        + (doc.database.requiresBackup ? '; backup before updating.' : '.') + '</p>' : '';
+      const images = '<p class="images">' + [
+        imageLine('backend', doc.backend),
+        imageLine('worker', doc.worker),
+        imageLine('scheduler', doc.scheduler),
+      ].filter(Boolean).join('<br>') + '</p>';
+      const reqs = reqsHtml([
         doc.frontendCompatibility && doc.frontendCompatibility.requiredFrontendRange
           ? 'Frontend <code>' + esc(doc.frontendCompatibility.requiredFrontendRange) + '</code>' : '',
         doc.pluginApiVersion ? 'Plugin API <code>' + esc(doc.pluginApiVersion) + '</code>' : '',
@@ -298,71 +465,28 @@
         doc.runtime && doc.runtime.redis ? 'Redis <code>' + esc(doc.runtime.redis.supportedVersions) + '</code>' : '',
         doc.runtime && doc.runtime.mercure ? 'Mercure <code>' + esc(doc.runtime.mercure.supportedVersions) + '</code>' : '',
         doc.backend && doc.backend.phpVersion ? 'PHP <code>' + esc(doc.backend.phpVersion) + '</code> (inside the image)' : '',
-      ]) : '';
-      const images = doc ? '<p class="images">' + [
-        imageLine('backend', doc.backend),
-        imageLine('worker', doc.worker),
-        imageLine('scheduler', doc.scheduler),
-      ].filter(Boolean).join('<br>') + '</p>' : '';
-      const db = doc && doc.database ? '<p class="desc">Database migrations: <code>' + esc(doc.database.migrationRange) + '</code>'
-        + (doc.database.destructive ? ' — <strong>destructive</strong> (backup required, manual confirmation)' : ' — non-destructive')
-        + (doc.database.requiresBackup ? '; backup before updating.' : '.') + '</p>' : '';
-      return card({
-        title: 'SelfHelp Core',
-        sub: 'backend + worker + scheduler images (one release, three images)',
-        ref,
-        body: (doc ? db : noDetail()) + (images || '') + reqs,
-      });
+      ]);
+      return db + images + reqs;
     }
 
-    function frontendCard(ref, doc) {
-      const reqs = doc && doc.backendCompatibility ? reqsHtml([
+    function frontendBody(doc) {
+      if (!doc) return noDetail();
+      const built = doc.builtFrom && doc.builtFrom.sharedPackageVersion
+        ? '<p class="desc">Built with <code>@selfhelp/shared ' + esc(doc.builtFrom.sharedPackageVersion) + '</code>.</p>' : '';
+      const images = doc.image ? '<p class="images">' + imageLine('frontend', doc) + '</p>' : '';
+      const reqs = doc.backendCompatibility ? reqsHtml([
         doc.backendCompatibility.requiredCoreRange ? 'SelfHelp core <code>' + esc(doc.backendCompatibility.requiredCoreRange) + '</code>' : '',
         doc.backendCompatibility.requiredApiVersion ? 'API version <code>' + esc(doc.backendCompatibility.requiredApiVersion) + '</code>' : '',
       ]) : '';
-      const images = doc && doc.image ? '<p class="images">' + imageLine('frontend', doc) + '</p>' : '';
-      const built = doc && doc.builtFrom && doc.builtFrom.sharedPackageVersion
-        ? '<p class="desc">Built with <code>@selfhelp/shared ' + esc(doc.builtFrom.sharedPackageVersion) + '</code>.</p>' : '';
-      return card({
-        title: 'SelfHelp Frontend',
-        sub: 'Next.js standalone image served behind the manager\u2019s proxy',
-        ref,
-        body: (doc ? built : noDetail()) + (images || '') + reqs,
-      });
+      return built + images + reqs;
     }
 
-    function simplePlatformCard(title, sub, ref, doc) {
-      const images = doc && doc.image ? '<p class="images">' + imageLine(title.toLowerCase(), doc) + '</p>' : '';
-      return card({ title, sub, ref, body: (doc ? '' : noDetail()) + images });
+    function simpleBody(label, doc) {
+      if (!doc) return noDetail();
+      return doc.image ? '<p class="images">' + imageLine(label, doc) + '</p>' : '';
     }
 
-    function noDetail() {
-      return '<p class="desc">Release details could not be loaded; see the linked release document.</p>';
-    }
-
-    function card({ title, sub, ref, body, extraTags, links }) {
-      const releaseHref = absUrl(ref.releaseUrl);
-      const allLinks = (links || []).concat(releaseHref ? ['<a href="' + esc(releaseHref) + '">Release document</a>'] : []).filter(Boolean).join('');
-      return `
-        <article class="card">
-          <div class="card-head">
-            <div>
-              <h2>${esc(title)}</h2>
-              ${sub ? '<p class="card-sub">' + sub + '</p>' : ''}
-            </div>
-            <div class="version">${esc(ref.version || 'unknown')}</div>
-          </div>
-          ${body || ''}
-          <div class="tags">${tagsHtml(ref, extraTags)}</div>
-          <div class="links">${allLinks}</div>
-        </article>
-      `;
-    }
-
-    // --- Plugin cards (release doc + manifest snapshot) ----------------------
-
-    function pluginCard(ref, release, manifest) {
-      const name = (manifest && manifest.name) || ref.id || 'Unnamed plugin';
+    function pluginBody(release, manifest) {
       const description = (manifest && manifest.description) || 'No description provided.';
       const compat = (release && release.compatibility) || {};
       const reqs = reqsHtml([
@@ -372,26 +496,154 @@
         release && Array.isArray(release.dependencies && release.dependencies.plugins) && release.dependencies.plugins.length > 0
           ? 'Depends on plugins: <code>' + esc(release.dependencies.plugins.map((p) => p.id + ' ' + (p.range || '')).join(', ')) + '</code>' : '',
       ]);
-      const manifestHref = absUrl(release && release.artifacts && release.artifacts.manifestUrl);
-      const archiveHref = absUrl(release && release.artifacts && release.artifacts.archiveUrl);
-      const homepage = manifest && manifest.homepage;
-      return card({
-        title: name,
-        sub: esc(ref.id || ''),
-        ref,
-        body: '<p class="desc">' + esc(description) + '</p>' + reqs,
-        extraTags: [
-          release && release.official ? '<span class="tag">official</span>' : '',
-        ],
-        links: [
+      return '<p class="desc">' + esc(description) + '</p>' + (release ? '' : noDetail()) + reqs;
+    }
+
+    // --- Group card (newest expanded + compact version history) --------------
+
+    function historyRow(group, v) {
+      const releaseHref = absUrl(v.ref.releaseUrl);
+      const archiveHref = group.kind === 'plugin' ? absUrl(v.doc && v.doc.artifacts && v.doc.artifacts.archiveUrl) : null;
+      const date = formatDate(v.doc && v.doc.releasedAt);
+      const links = [
+        releaseHref ? '<a href="' + esc(releaseHref) + '">Release document</a>' : '',
+        archiveHref ? '<a href="' + esc(archiveHref) + '">Download</a>' : '',
+      ].filter(Boolean).join(' · ');
+      return '<li>'
+        + '<span class="v">' + esc(v.ref.version) + '</span>'
+        + (date ? '<span title="' + esc(v.doc.releasedAt) + '">' + esc(date) + '</span>' : '')
+        + (v.ref.channel ? '<span class="tag">' + esc(v.ref.channel) + '</span>' : '')
+        + (v.ref.blocked ? '<span class="tag blocked">blocked</span>' : '')
+        + (links ? '<span>' + links + '</span>' : '')
+        + '</li>';
+    }
+
+    function groupCard(group) {
+      const newest = group.versions[0];
+      const older = group.versions.slice(1);
+      let body;
+      let extraTags = [];
+      let links = [];
+      if (group.kind === 'core') body = coreBody(newest.doc);
+      else if (group.kind === 'frontend') body = frontendBody(newest.doc);
+      else if (group.kind === 'scheduler' || group.kind === 'worker') body = simpleBody(group.kind, newest.doc);
+      else {
+        body = pluginBody(newest.doc, group.manifest);
+        extraTags = [newest.doc && newest.doc.official ? '<span class="tag">official</span>' : ''];
+        const manifestHref = absUrl(newest.doc && newest.doc.artifacts && newest.doc.artifacts.manifestUrl);
+        const archiveHref = absUrl(newest.doc && newest.doc.artifacts && newest.doc.artifacts.archiveUrl);
+        const homepage = group.manifest && group.manifest.homepage;
+        links = [
           homepage ? '<a href="' + esc(homepage) + '">Homepage</a>' : '',
           manifestHref ? '<a href="' + esc(manifestHref) + '">Manifest</a>' : '',
           archiveHref ? '<a href="' + esc(archiveHref) + '">Download .shplugin</a>' : '',
-        ],
-      });
+        ];
+      }
+      const releaseHref = absUrl(newest.ref.releaseUrl);
+      const allLinks = links.concat(releaseHref ? ['<a href="' + esc(releaseHref) + '">Release document</a>'] : []).filter(Boolean).join('');
+      const history = older.length > 0
+        ? '<div class="history"><h3>Older versions</h3><ul>' + older.map((v) => historyRow(group, v)).join('') + '</ul></div>'
+        : '';
+      return `
+        <article class="card">
+          <div class="card-head">
+            <div>
+              <h2>${esc(group.title)}</h2>
+              ${group.sub ? '<p class="card-sub">' + esc(group.sub) + '</p>' : ''}
+            </div>
+            <div class="version-col">
+              <span class="version">${esc(newest.ref.version || 'unknown')}</span>
+              ${dateHtml(newest.doc && newest.doc.releasedAt)}
+            </div>
+          </div>
+          ${body || ''}
+          <div class="tags">${tagsHtml(newest.ref, extraTags)}</div>
+          <div class="links">${allLinks}</div>
+          ${history}
+        </article>
+      `;
     }
 
-    // --- Load + render --------------------------------------------------------
+    // --- Filtering + render ---------------------------------------------------
+
+    function matchesQuery(group, q) {
+      if (!q) return true;
+      if (String(group.title).toLowerCase().includes(q)) return true;
+      if (String(group.id).toLowerCase().includes(q)) return true;
+      if (group.sub && String(group.sub).toLowerCase().includes(q)) return true;
+      return group.versions.some((v) => String(v.ref.version).toLowerCase().includes(q));
+    }
+
+    function render() {
+      const q = state.query.trim().toLowerCase();
+      const projected = state.groups
+        .map((group) => ({
+          ...group,
+          versions: group.versions.filter((v) => state.channel === 'all' || (v.ref.channel || 'stable') === state.channel),
+        }))
+        .filter((group) => group.versions.length > 0 && matchesQuery(group, q))
+        .sort(groupCmp);
+
+      const platform = projected.filter((g) => g.section === 'platform');
+      const plugins = projected.filter((g) => g.section === 'plugin');
+      const filtered = q !== '' || state.channel !== 'all';
+
+      platformList.innerHTML = platform.map(groupCard).join('');
+      platformEmpty.hidden = platform.length > 0;
+      platformEmpty.textContent = filtered
+        ? 'No platform releases match the current filter.'
+        : 'No platform releases are currently published.';
+
+      pluginList.innerHTML = plugins.map(groupCard).join('');
+      pluginEmpty.hidden = plugins.length > 0;
+      pluginEmpty.textContent = filtered
+        ? 'No plugins match the current filter.'
+        : 'No plugins are currently published.';
+    }
+
+    function renderChannelChips() {
+      const channels = new Set();
+      for (const group of state.groups) {
+        for (const v of group.versions) channels.add(v.ref.channel || 'stable');
+      }
+      const order = ['stable', 'beta', 'nightly', 'test'].filter((c) => channels.has(c));
+      const all = ['all'].concat(order);
+      channelChips.innerHTML = all.map((c) =>
+        '<button type="button" class="chip' + (state.channel === c ? ' active' : '') + '" data-channel="' + esc(c) + '">'
+        + esc(c === 'all' ? 'All channels' : c) + '</button>'
+      ).join('');
+    }
+
+    searchInput.addEventListener('input', () => {
+      state.query = searchInput.value;
+      render();
+    });
+
+    channelChips.addEventListener('click', (event) => {
+      const chip = event.target.closest('button[data-channel]');
+      if (!chip) return;
+      state.channel = chip.dataset.channel;
+      renderChannelChips();
+      render();
+    });
+
+    // --- Load -----------------------------------------------------------------
+
+    const PLATFORM_META = {
+      core: { title: 'SelfHelp Core', sub: 'backend + worker + scheduler images (one release, three images)' },
+      frontend: { title: 'SelfHelp Frontend', sub: 'Next.js standalone image served behind the manager\u2019s proxy' },
+      scheduler: { title: 'SelfHelp Scheduler', sub: 'standalone scheduler release ref (image also ships with core)' },
+      worker: { title: 'SelfHelp Worker', sub: 'standalone worker release ref (image also ships with core)' },
+    };
+
+    async function loadVersions(refs) {
+      const versions = await Promise.all((Array.isArray(refs) ? refs : []).map(async (ref) => ({
+        ref,
+        doc: await fetchJson(absUrl(ref.releaseUrl)),
+      })));
+      versions.sort(versionCmp);
+      return versions;
+    }
 
     fetch('./registry.json', { cache: 'no-store' })
       .then((response) => {
@@ -400,34 +652,49 @@
       })
       .then(async (data) => {
         publishedAt.textContent = 'Published: ' + (data.publishedAt || 'unknown');
+        state.baseUrl = typeof data.baseUrl === 'string' && data.baseUrl !== ''
+          ? (data.baseUrl.endsWith('/') ? data.baseUrl : data.baseUrl + '/')
+          : null;
 
-        const semverDesc = (a, b) => String(b.version).localeCompare(String(a.version), undefined, { numeric: true });
-        const core = (Array.isArray(data.core) ? data.core : []).slice().sort(semverDesc);
-        const frontend = (Array.isArray(data.frontend) ? data.frontend : []).slice().sort(semverDesc);
-        const scheduler = (Array.isArray(data.scheduler) ? data.scheduler : []).slice().sort(semverDesc);
-        const worker = (Array.isArray(data.worker) ? data.worker : []).slice().sort(semverDesc);
-        const plugins = (Array.isArray(data.plugins) ? data.plugins : []).slice().sort(semverDesc);
+        const groups = [];
 
-        // Platform: fetch each linked release doc (fail-soft to a ref-only card).
-        const platformCards = await Promise.all([
-          ...core.map(async (ref) => coreCard(ref, await fetchJson(absUrl(ref.releaseUrl)))),
-          ...frontend.map(async (ref) => frontendCard(ref, await fetchJson(absUrl(ref.releaseUrl)))),
-          ...scheduler.map(async (ref) => simplePlatformCard('SelfHelp Scheduler', 'standalone scheduler release ref (image also ships with core)', ref, await fetchJson(absUrl(ref.releaseUrl)))),
-          ...worker.map(async (ref) => simplePlatformCard('SelfHelp Worker', 'standalone worker release ref (image also ships with core)', ref, await fetchJson(absUrl(ref.releaseUrl)))),
-        ]);
-        if (platformCards.length === 0) platformEmpty.hidden = false;
-        platformList.innerHTML = platformCards.join('');
+        // Platform: one group per component that has at least one release ref.
+        for (const kind of ['core', 'frontend', 'scheduler', 'worker']) {
+          const versions = await loadVersions(data[kind]);
+          if (versions.length === 0) continue;
+          const meta = PLATFORM_META[kind];
+          groups.push({ section: 'platform', kind, id: kind, title: meta.title, sub: meta.sub, versions });
+        }
 
-        // Plugins: release doc -> manifest snapshot (name + description).
-        const pluginCards = await Promise.all(plugins.map(async (ref) => {
-          const release = await fetchJson(absUrl(ref.releaseUrl));
-          const manifest = release && release.artifacts && release.artifacts.manifestUrl
-            ? await fetchJson(absUrl(release.artifacts.manifestUrl))
+        // Plugins: one group per plugin id; manifest snapshot for the newest
+        // version supplies the display name + description.
+        const byId = new Map();
+        for (const ref of Array.isArray(data.plugins) ? data.plugins : []) {
+          if (!byId.has(ref.id)) byId.set(ref.id, []);
+          byId.get(ref.id).push(ref);
+        }
+        for (const [id, refs] of byId) {
+          const versions = await loadVersions(refs);
+          if (versions.length === 0) continue;
+          const newest = versions[0];
+          const manifest = newest.doc && newest.doc.artifacts && newest.doc.artifacts.manifestUrl
+            ? await fetchRegistryJson(absUrl(newest.doc.artifacts.manifestUrl))
             : null;
-          return pluginCard(ref, release, manifest);
-        }));
-        if (pluginCards.length === 0) pluginEmpty.hidden = false;
-        pluginList.innerHTML = pluginCards.join('');
+          groups.push({
+            section: 'plugin',
+            kind: 'plugin',
+            id,
+            title: (manifest && manifest.name) || id,
+            sub: id,
+            manifest,
+            versions,
+          });
+        }
+
+        state.groups = groups;
+        toolbar.hidden = groups.length === 0;
+        renderChannelChips();
+        render();
       })
       .catch(() => {
         error.hidden = false;

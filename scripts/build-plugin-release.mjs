@@ -31,6 +31,7 @@ SPDX-License-Identifier: MPL-2.0
  *   --archive-url <url>       override artifacts.archiveUrl (default: <base>/artifacts/<id>-<ver>.shplugin)
  *   --manifest-url <url>      override artifacts.manifestUrl (default: <base>/manifests/<id>-<ver>.json)
  *   --channel <name>         stable (default) | beta | nightly | test
+ *   --released-at <iso>      publish timestamp (default: now, ISO-8601)
  *   --out <path>             write here (default: stdout)
  */
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -62,7 +63,7 @@ export function pluginApiRange(version) {
  * Map a plugin manifest -> an UNSIGNED plugin release document. Pure (no IO),
  * so a test can assert the mapping without touching the filesystem.
  */
-export function buildPluginRelease(manifest, { channel = 'stable', archiveSha256, baseUrl, archiveUrl, manifestUrl } = {}) {
+export function buildPluginRelease(manifest, { channel = 'stable', archiveSha256, baseUrl, archiveUrl, manifestUrl, releasedAt } = {}) {
   if (!manifest || typeof manifest !== 'object') throw new Error('manifest must be an object.');
   const id = manifest.id;
   const version = manifest.version;
@@ -81,6 +82,7 @@ export function buildPluginRelease(manifest, { channel = 'stable', archiveSha256
     kind: 'selfhelp-plugin-release',
     id,
     version,
+    releasedAt: typeof releasedAt === 'string' && releasedAt !== '' ? releasedAt : new Date().toISOString(),
     channel,
     official: manifest?.security?.trustLevel === 'official',
     compatibility: {
@@ -188,6 +190,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
       baseUrl: str(args['base-url']),
       archiveUrl: str(args['archive-url']),
       manifestUrl: str(args['manifest-url']),
+      releasedAt: str(args['released-at']),
     });
     const out = JSON.stringify(release, null, 2) + '\n';
     if (args.out) {
