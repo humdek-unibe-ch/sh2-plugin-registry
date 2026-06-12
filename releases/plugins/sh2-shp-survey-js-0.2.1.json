@@ -2,7 +2,7 @@
   "kind": "selfhelp-plugin-release",
   "id": "sh2-shp-survey-js",
   "version": "0.2.1",
-  "releasedAt": "2026-06-12T10:25:36.712Z",
+  "releasedAt": "2026-06-12T13:30:55.200Z",
   "channel": "stable",
   "official": true,
   "compatibility": {
@@ -15,11 +15,11 @@
   "artifacts": {
     "manifestUrl": "https://humdek-unibe-ch.github.io/sh2-plugin-registry/manifests/sh2-shp-survey-js-0.2.1.json",
     "archiveUrl": "https://humdek-unibe-ch.github.io/sh2-plugin-registry/artifacts/sh2-shp-survey-js-0.2.1.shplugin",
-    "sha256": "sha256:e2757a30fc1e01571f8b6428054f6f2472727d1c2ee7d754d9757205e50b49be"
+    "sha256": "sha256:e2672701f10ae7812fe9af7c008012be8e884b2a9228c107a86bf0282226e8e3"
   },
   "security": {
-    "signature": "8PtkCA1PcTTliUjgHGnA2uT7Y1ucXjOXU/UzKAQCqofyg4iHSFjJP73Q5j1gmItqpS9o9OGINHoCqfncGb/8Aw==",
+    "signature": "gKDYxpG5BUPj6jVIWbwiNVkvEvegrZnC8JVB9RfwipA3UbLapZT8lXGVcTCnH9P7n96YcPX+gh4JlKQHsEx3CA==",
     "keyId": "prod",
-    "signedPayloadSha256": "sha256:78c2dc519d81af7759845445689e0de3420dad3c6de0e037e16cc46661d08af6"
+    "signedPayloadSha256": "sha256:c42ba4a2fc05f2b850009ab7da37d568ee10b56e1104e8943dadeefba27c94a7"
   }
 }
