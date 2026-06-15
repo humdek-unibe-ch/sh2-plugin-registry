@@ -1,0 +1,58 @@
+{
+  "kind": "selfhelp-core-release",
+  "id": "selfhelp-core-0.1.7",
+  "version": "0.1.7",
+  "channel": "stable",
+  "releasedAt": "2026-06-15T15:04:02.313Z",
+  "minimumDirectUpgradeFrom": "0.1.0",
+  "pluginApiVersion": "0.1.0",
+  "backend": {
+    "image": "ghcr.io/humdek-unibe-ch/selfhelp-backend:0.1.7",
+    "digest": "sha256:00d29017c31d311cd47ff5474e19d40677f02f5325f5eb02214217e2bd9a81c9",
+    "phpVersion": "8.4"
+  },
+  "worker": {
+    "image": "ghcr.io/humdek-unibe-ch/selfhelp-worker:0.1.7",
+    "digest": "sha256:1e7c5cd2298da95282ae8c85f1c4bfaa047b7c946347af4b41de18e74b2694db"
+  },
+  "scheduler": {
+    "image": "ghcr.io/humdek-unibe-ch/selfhelp-scheduler:0.1.7",
+    "digest": "sha256:3eecba66019b64ccc6d1611ce20d298abb0dc70d287e986463d1e0c5d3490af8"
+  },
+  "frontendCompatibility": {
+    "requiredFrontendRange": ">=0.1.0 <0.2.0"
+  },
+  "database": {
+    "migrationRange": "Version20260501000000..Version20260615150000",
+    "destructive": false,
+    "requiresBackup": true,
+    "manualConfirmationRequired": false
+  },
+  "runtime": {
+    "php": {
+      "backendImagePhpVersion": "8.4"
+    },
+    "mysql": {
+      "supportedVersions": ">=8.0.0 <9.0.0",
+      "minimumRequired": "8.0.0",
+      "recommendedVersion": "8.4",
+      "recommendedImage": "mysql:8.4",
+      "majorUpgradeRequiresManualApproval": true
+    },
+    "redis": {
+      "supportedVersions": ">=7.0.0 <8.0.0",
+      "recommendedVersion": "7.2",
+      "recommendedImage": "redis:7.2"
+    },
+    "mercure": {
+      "supportedVersions": ">=0.15.0 <1.0.0",
+      "recommendedVersion": "0.18",
+      "recommendedImage": "dunglas/mercure:v0.18"
+    }
+  },
+  "security": {
+    "signature": "KIFzzyNJ7sxiTnKqrcUZZ5U6MEPFi78cCrr50OY283M+4/BsNNzrrAIute/hdzIUeA79//42pxy9ZAp4DXixCQ==",
+    "keyId": "prod",
+    "signedPayloadSha256": "sha256:27eb52ae19532adb6b6c44d4beda630e9d16287191af0cce5f0a0df12e6f5ec1"
+  }
+}
