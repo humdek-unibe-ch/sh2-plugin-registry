@@ -95,6 +95,12 @@
             "version": "0.1.9",
             "channel": "stable",
             "releaseUrl": "releases/frontend/selfhelp-frontend-0.1.9.json"
+        },
+        {
+            "id": "selfhelp-frontend-0.1.11",
+            "version": "0.1.11",
+            "channel": "stable",
+            "releaseUrl": "releases/frontend/selfhelp-frontend-0.1.11.json"
         }
     ],
     "scheduler": [
