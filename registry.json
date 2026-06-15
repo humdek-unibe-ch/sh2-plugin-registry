@@ -83,6 +83,12 @@
             "version": "0.1.8",
             "channel": "stable",
             "releaseUrl": "releases/frontend/selfhelp-frontend-0.1.8.json"
+        },
+        {
+            "id": "selfhelp-frontend-0.1.9",
+            "version": "0.1.9",
+            "channel": "stable",
+            "releaseUrl": "releases/frontend/selfhelp-frontend-0.1.9.json"
         }
     ],
     "scheduler": [
