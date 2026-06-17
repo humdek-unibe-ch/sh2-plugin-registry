@@ -66,6 +66,68 @@ function fakeCtx(overrides = {}) {
   };
 }
 
+const WAVE_DIGESTS = {
+  'ghcr.io/acme/selfhelp-backend:0.1.12': 'sha256:backend-112',
+  'ghcr.io/acme/selfhelp-worker:0.1.12': 'sha256:worker-112',
+  'ghcr.io/acme/selfhelp-scheduler:0.1.12': 'sha256:scheduler-112',
+  'ghcr.io/acme/selfhelp-frontend:0.1.19': 'sha256:frontend-119',
+};
+
+/**
+ * A registry mid-coordinated-wave: the PUBLISHED counterparts are the pre-wave
+ * core 0.1.11 + frontend 0.1.17 (both still declaring the old loose ranges),
+ * while the NEW, mutually-incompatible-with-the-old core 0.1.12 + frontend
+ * 0.1.19 are already TAGGED in their repos but not yet published here. This is
+ * exactly the deadlock the counterpart-tag fallback resolves.
+ */
+function waveCtx(overrides = {}) {
+  return {
+    owner: 'acme',
+    registry: {
+      core: [
+        { id: 'selfhelp-core-0.1.11', version: '0.1.11', channel: 'stable', releaseUrl: 'releases/core/selfhelp-core-0.1.11.json' },
+      ],
+      frontend: [
+        { id: 'selfhelp-frontend-0.1.17', version: '0.1.17', channel: 'stable', releaseUrl: 'releases/frontend/selfhelp-frontend-0.1.17.json' },
+      ],
+      ...overrides.registry,
+    },
+    async loadRelease(url) {
+      if (url.includes('core')) {
+        return { version: '0.1.11', frontendCompatibility: { requiredFrontendRange: '>=0.1.0 <0.2.0' } };
+      }
+      return { version: '0.1.17', backendCompatibility: { requiredCoreRange: '>=0.1.0 <0.2.0' } };
+    },
+    async branchExists() {
+      return false;
+    },
+    async resolveImageDigest(image) {
+      return WAVE_DIGESTS[image] ?? null;
+    },
+    async fetchComponentJson(repo, ref, file) {
+      if (file === 'release-manifest.json' && repo === 'sh-selfhelp_backend') {
+        return { kind: 'core', supports: { frontend: '>=0.1.18 <0.2.0' }, minimumDirectUpgradeFrom: '0.1.0', pluginApiVersion: '0.1.0', php: '8.4' };
+      }
+      if (file === 'release-manifest.json' && repo === 'sh-selfhelp_frontend') {
+        return { kind: 'frontend', supports: { core: '>=0.1.12 <0.2.0' }, requiredApiVersion: '0.1.0' };
+      }
+      if (file === 'package-lock.json') {
+        return { packages: { 'node_modules/@selfhelp/shared': { version: '1.7.0' } } };
+      }
+      return null;
+    },
+    async listMigrationClasses() {
+      return ['Version20260501000000', 'Version20260617093424'];
+    },
+    async listTags(repo) {
+      if (repo === 'sh-selfhelp_backend') return ['v0.1.12', 'v0.1.11'];
+      if (repo === 'sh-selfhelp_frontend') return ['v0.1.19', 'v0.1.18', 'v0.1.17'];
+      return [];
+    },
+    ...overrides.fns,
+  };
+}
+
 test('core candidate: exact-version counterpart inside both ranges resolves ready', async () => {
   const res = await resolveCandidate({ kind: 'core', version: '0.2.0' }, fakeCtx());
   assert.equal(res.status, 'ready');
@@ -153,4 +215,66 @@ test('event plan: repository_dispatch payload normalizes into one candidate', ()
   assert.deepEqual(plan, [
     { kind: 'core', version: '0.2.0', channel: 'stable', digests: { backend: 'sha256:x' } },
   ]);
+});
+
+test('coordinated wave: core matches an unpublished but compatible frontend TAG (no deadlock)', async () => {
+  // Published frontend is the pre-wave 0.1.17, which core 0.1.12 no longer
+  // supports — the strict check alone would deadlock. The fallback finds the
+  // newest mutually-compatible frontend tag (0.1.19) and stages anyway.
+  const res = await resolveCandidate({ kind: 'core', version: '0.1.12' }, waveCtx());
+  assert.equal(res.status, 'ready');
+  assert.equal(res.publish.version, '0.1.12');
+  assert.equal(res.publish.metadata.frontendRange, '>=0.1.18 <0.2.0');
+  assert.deepEqual(res.publish.digests, {
+    backend: 'sha256:backend-112',
+    worker: 'sha256:worker-112',
+    scheduler: 'sha256:scheduler-112',
+  });
+  assert.match(res.reasons.join(' '), /unpublished counterpart tag/);
+  assert.match(res.reasons.join(' '), /frontend 0\.1\.19 ⇄ core 0\.1\.12/);
+});
+
+test('coordinated wave: frontend matches an unpublished but compatible core TAG (no deadlock)', async () => {
+  const res = await resolveCandidate({ kind: 'frontend', version: '0.1.19' }, waveCtx());
+  assert.equal(res.status, 'ready');
+  assert.deepEqual(res.publish.digests, { image: 'sha256:frontend-119' });
+  assert.equal(res.publish.metadata.requiredCoreRange, '>=0.1.12 <0.2.0');
+  assert.equal(res.publish.metadata.sharedPackageVersion, '1.7.0');
+  assert.match(res.reasons.join(' '), /unpublished counterpart tag/);
+  assert.match(res.reasons.join(' '), /core 0\.1\.12 ⇄ frontend 0\.1\.19/);
+});
+
+test('coordinated wave: still blocks when no compatible counterpart tag exists yet', async () => {
+  // Frontend 0.1.18+ has not been tagged yet, so there is genuinely nothing to
+  // pair core 0.1.12 with — the resolver must keep failing loudly.
+  const ctx = waveCtx({
+    fns: { listTags: async (repo) => (repo === 'sh-selfhelp_frontend' ? ['v0.1.17'] : ['v0.1.12', 'v0.1.11']) },
+  });
+  const res = await resolveCandidate({ kind: 'core', version: '0.1.12' }, ctx);
+  assert.equal(res.status, 'incompatible');
+  assert.match(res.reasons.join(' '), /the latest stable frontend is 0\.1\.17/);
+});
+
+test('coordinated wave: skips a counterpart tag whose own range excludes us, takes the next compatible one', async () => {
+  // Frontend 0.1.20 (newest) dropped support for core 0.1.12; 0.1.18 still
+  // supports it. Newest-first scan skips 0.1.20 and matches 0.1.18.
+  const ctx = waveCtx({
+    fns: {
+      listTags: async (repo) =>
+        repo === 'sh-selfhelp_frontend' ? ['v0.1.20', 'v0.1.18', 'v0.1.17'] : ['v0.1.12', 'v0.1.11'],
+      fetchComponentJson: async (repo, ref, file) => {
+        if (file === 'release-manifest.json' && repo === 'sh-selfhelp_backend') {
+          return { kind: 'core', supports: { frontend: '>=0.1.18 <0.2.0' }, minimumDirectUpgradeFrom: '0.1.0', pluginApiVersion: '0.1.0', php: '8.4' };
+        }
+        if (file === 'release-manifest.json' && repo === 'sh-selfhelp_frontend') {
+          if (ref === 'v0.1.20') return { kind: 'frontend', supports: { core: '>=0.1.13 <0.2.0' } };
+          return { kind: 'frontend', supports: { core: '>=0.1.12 <0.2.0' } };
+        }
+        return null;
+      },
+    },
+  });
+  const res = await resolveCandidate({ kind: 'core', version: '0.1.12' }, ctx);
+  assert.equal(res.status, 'ready');
+  assert.match(res.reasons.join(' '), /frontend 0\.1\.18 ⇄ core 0\.1\.12/);
 });

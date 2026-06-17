@@ -17,8 +17,12 @@ SPDX-License-Identifier: MPL-2.0
  *                         declares which counterpart versions it supports;
  *   3. digest check     — every image digest is resolved from GHCR by tag;
  *                         digests supplied by the trigger payload must MATCH;
- *   4. compatibility    — BIDIRECTIONAL semver check against the latest
- *                         stable counterpart release (core ⇄ frontend);
+ *   4. compatibility    — BIDIRECTIONAL semver check against the latest stable
+ *                         counterpart release (core ⇄ frontend); during a
+ *                         coordinated wave where the published counterpart is
+ *                         still the old incompatible version, falls back to the
+ *                         newest mutually-compatible counterpart git TAG so both
+ *                         new sides stage together (no deadlock);
  *   5. output           — the PUBLISH_* inputs for `publish-release.mjs`.
  *
  * It never signs, commits, or publishes anything itself, and the resulting
@@ -120,39 +124,68 @@ export async function resolveCandidate(candidate, ctx) {
     resolved[svc === 'frontend' ? 'image' : svc] = digest;
   }
 
-  // 4. Bidirectional compatibility against the latest stable counterpart.
+  // 4. Bidirectional compatibility.
+  //
+  // The happy path matches against the latest ALREADY-PUBLISHED counterpart in
+  // the registry. During a coordinated (breaking) wave both sides advance
+  // together, so the published counterpart is briefly the old, now-incompatible
+  // version and a strict "must match the latest published counterpart" check
+  // would deadlock (each side waits for the other). When that happens we fall
+  // back to the newest counterpart REPO tag that is MUTUALLY compatible: it just
+  // hasn't been published to the registry yet and lands in the same wave. Each
+  // side still stages its own reviewed + signed PR, and the manager only ever
+  // installs a mutually-compatible set, so a registry that briefly holds one
+  // side before the other is safe.
   const counterpartKind = kind === 'core' ? 'frontend' : 'core';
-  const counterpartRef = latestStableRef(ctx.registry[counterpartKind] ?? []);
-  if (!counterpartRef) {
-    return {
-      status: 'missing-component',
-      reasons: [`No stable ${counterpartKind} release exists in the registry yet; a full ${kind} candidate cannot be matched.`],
-    };
+  const supportField = kind === 'core' ? 'supports.frontend' : 'supports.core';
+  const ourSupportRange = kind === 'core' ? manifest.supports?.frontend : manifest.supports?.core;
+  if (!ourSupportRange) {
+    return { status: 'error', reasons: [`release-manifest.json of ${repo}@v${version} lacks ${supportField}.`] };
   }
-  const counterpart = await ctx.loadRelease(counterpartRef.releaseUrl);
+
+  const counterpartRef = latestStableRef(ctx.registry[counterpartKind] ?? []);
+  let matched = null; // { version, via: 'published' | 'tag' }
+  let blockStatus = 'missing-component';
+  let blockReason = `No stable ${counterpartKind} release exists in the registry yet; a full ${kind} candidate cannot be matched.`;
+
+  if (counterpartRef) {
+    const counterpart = await ctx.loadRelease(counterpartRef.releaseUrl);
+    const counterpartRange =
+      kind === 'core'
+        ? counterpart.backendCompatibility?.requiredCoreRange
+        : counterpart.frontendCompatibility?.requiredFrontendRange;
+    const forwardOk = semver.satisfies(counterpartRef.version, ourSupportRange, SEMVER_OPTS);
+    const reverseOk = !counterpartRange || semver.satisfies(version, counterpartRange, SEMVER_OPTS);
+    if (forwardOk && reverseOk) {
+      matched = { version: counterpartRef.version, via: 'published' };
+    } else {
+      blockStatus = 'incompatible';
+      blockReason = !forwardOk
+        ? kind === 'core'
+          ? `core ${version} supports frontend ${ourSupportRange}, but the latest stable frontend is ${counterpartRef.version}.`
+          : `frontend ${version} requires core ${ourSupportRange}, but the latest stable core is ${counterpartRef.version}.`
+        : kind === 'core'
+          ? `frontend ${counterpartRef.version} requires core ${counterpartRange}, which excludes core ${version}.`
+          : `core ${counterpartRef.version} accepts frontend ${counterpartRange}, which excludes frontend ${version}.`;
+    }
+  }
+
+  if (!matched) {
+    const tagMatch = await newestCompatibleCounterpartTag(ctx, counterpartKind, ourSupportRange, kind, version);
+    if (tagMatch) matched = { version: tagMatch.version, via: 'tag' };
+  }
+
+  if (!matched) {
+    return { status: blockStatus, reasons: [blockReason] };
+  }
+
+  reasons.push(
+    matched.via === 'published'
+      ? `${counterpartKind} ${matched.version} ⇄ ${kind} ${version}: both ranges satisfied.`
+      : `${counterpartKind} ${matched.version} ⇄ ${kind} ${version}: both ranges satisfied against an unpublished counterpart tag (coordinated wave — the ${counterpartKind} release stages alongside this one).`,
+  );
 
   if (kind === 'core') {
-    const supportsFrontend = manifest.supports?.frontend;
-    if (!supportsFrontend) {
-      return { status: 'error', reasons: [`release-manifest.json of ${repo}@v${version} lacks supports.frontend.`] };
-    }
-    if (!semver.satisfies(counterpartRef.version, supportsFrontend, SEMVER_OPTS)) {
-      return {
-        status: 'incompatible',
-        reasons: [
-          `core ${version} supports frontend ${supportsFrontend}, but the latest stable frontend is ${counterpartRef.version}.`,
-        ],
-      };
-    }
-    const coreRange = counterpart.backendCompatibility?.requiredCoreRange;
-    if (coreRange && !semver.satisfies(version, coreRange, SEMVER_OPTS)) {
-      return {
-        status: 'incompatible',
-        reasons: [`frontend ${counterpartRef.version} requires core ${coreRange}, which excludes core ${version}.`],
-      };
-    }
-    reasons.push(`frontend ${counterpartRef.version} ⇄ core ${version}: both ranges satisfied.`);
-
     const migrationRange =
       candidate.metadata?.migrationRange ?? (await migrationRangeFromRepo(ctx, repo, `v${version}`));
     if (!migrationRange) {
@@ -170,7 +203,7 @@ export async function resolveCandidate(candidate, ctx) {
         metadata: prune({
           minUpgradeFrom: manifest.minimumDirectUpgradeFrom,
           pluginApi: manifest.pluginApiVersion,
-          frontendRange: supportsFrontend,
+          frontendRange: ourSupportRange,
           migrationRange,
           php: manifest.php,
           destructive: candidate.metadata?.destructive,
@@ -183,25 +216,6 @@ export async function resolveCandidate(candidate, ctx) {
   }
 
   // kind === 'frontend'
-  const supportsCore = manifest.supports?.core;
-  if (!supportsCore) {
-    return { status: 'error', reasons: [`release-manifest.json of ${repo}@v${version} lacks supports.core.`] };
-  }
-  if (!semver.satisfies(counterpartRef.version, supportsCore, SEMVER_OPTS)) {
-    return {
-      status: 'incompatible',
-      reasons: [`frontend ${version} requires core ${supportsCore}, but the latest stable core is ${counterpartRef.version}.`],
-    };
-  }
-  const frontendRange = counterpart.frontendCompatibility?.requiredFrontendRange;
-  if (frontendRange && !semver.satisfies(version, frontendRange, SEMVER_OPTS)) {
-    return {
-      status: 'incompatible',
-      reasons: [`core ${counterpartRef.version} accepts frontend ${frontendRange}, which excludes frontend ${version}.`],
-    };
-  }
-  reasons.push(`core ${counterpartRef.version} ⇄ frontend ${version}: both ranges satisfied.`);
-
   const sharedPackageVersion =
     candidate.metadata?.sharedPackageVersion ?? (await sharedVersionFromLock(ctx, repo, `v${version}`));
 
@@ -214,7 +228,7 @@ export async function resolveCandidate(candidate, ctx) {
       channel,
       digests: resolved,
       metadata: prune({
-        requiredCoreRange: supportsCore,
+        requiredCoreRange: ourSupportRange,
         requiredApiVersion: manifest.requiredApiVersion,
         sharedPackageVersion,
       }),
@@ -281,6 +295,40 @@ function latestStableRef(refs) {
 function seedPath(kind, refs) {
   const latest = latestStableRef(refs);
   return latest ? latest.releaseUrl : undefined;
+}
+
+/**
+ * Coordinated-wave fallback: the newest tag in the counterpart repo that is
+ * MUTUALLY compatible with this candidate, even though it is not (yet) published
+ * to the registry. "Mutually compatible" means the counterpart tag satisfies OUR
+ * supported range AND the tag's own `release-manifest.json` supports OUR version.
+ * Tags are scanned newest-first and the first qualifying one wins, so an
+ * in-flight breaking-wave counterpart is matched while an older pre-wave tag is
+ * skipped. Returns { version, manifest } or null when no counterpart tag
+ * qualifies.
+ *
+ * @param {object} ctx injected IO (listTags + fetchComponentJson)
+ * @param {'core'|'frontend'} counterpartKind the OTHER component's kind
+ * @param {string} ourSupportRange the semver range THIS candidate supports for the counterpart
+ * @param {'core'|'frontend'} ourKind this candidate's kind
+ * @param {string} ourVersion this candidate's version
+ */
+async function newestCompatibleCounterpartTag(ctx, counterpartKind, ourSupportRange, ourKind, ourVersion) {
+  const repo = COMPONENT_REPOS[counterpartKind];
+  const tags = (await ctx.listTags(repo)) ?? [];
+  const candidates = tags
+    .map((t) => t.replace(/^v/, ''))
+    .filter((v) => semver.valid(v) && semver.satisfies(v, ourSupportRange, SEMVER_OPTS))
+    .sort(semver.rcompare);
+  for (const v of candidates) {
+    const m = await ctx.fetchComponentJson(repo, `v${v}`, 'release-manifest.json');
+    if (!m) continue;
+    const reverseRange = ourKind === 'core' ? m.supports?.core : m.supports?.frontend;
+    if (!reverseRange || semver.satisfies(ourVersion, reverseRange, SEMVER_OPTS)) {
+      return { version: v, manifest: m };
+    }
+  }
+  return null;
 }
 
 async function migrationRangeFromRepo(ctx, repo, ref) {
