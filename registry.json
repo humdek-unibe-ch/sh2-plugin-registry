@@ -1,7 +1,7 @@
 {
     "schemaVersion": "1.0",
     "requiresManager": ">=0.1.0",
-    "publishedAt": "2026-06-12T14:07:13Z",
+    "publishedAt": "2026-06-16T21:08:32Z",
     "baseUrl": "https://humdek-unibe-ch.github.io/sh2-plugin-registry/",
     "publisher": {
         "name": "Humdek, University of Bern",
@@ -39,6 +39,48 @@
             "version": "0.1.4",
             "channel": "stable",
             "releaseUrl": "releases/core/selfhelp-core-0.1.4.json"
+        },
+        {
+            "id": "selfhelp-core-0.1.5",
+            "version": "0.1.5",
+            "channel": "stable",
+            "releaseUrl": "releases/core/selfhelp-core-0.1.5.json"
+        },
+        {
+            "id": "selfhelp-core-0.1.6",
+            "version": "0.1.6",
+            "channel": "stable",
+            "releaseUrl": "releases/core/selfhelp-core-0.1.6.json"
+        },
+        {
+            "id": "selfhelp-core-0.1.7",
+            "version": "0.1.7",
+            "channel": "stable",
+            "releaseUrl": "releases/core/selfhelp-core-0.1.7.json"
+        },
+        {
+            "id": "selfhelp-core-0.1.8",
+            "version": "0.1.8",
+            "channel": "stable",
+            "releaseUrl": "releases/core/selfhelp-core-0.1.8.json"
+        },
+        {
+            "id": "selfhelp-core-0.1.9",
+            "version": "0.1.9",
+            "channel": "stable",
+            "releaseUrl": "releases/core/selfhelp-core-0.1.9.json"
+        },
+        {
+            "id": "selfhelp-core-0.1.10",
+            "version": "0.1.10",
+            "channel": "stable",
+            "releaseUrl": "releases/core/selfhelp-core-0.1.10.json"
+        },
+        {
+            "id": "selfhelp-core-0.1.11",
+            "version": "0.1.11",
+            "channel": "stable",
+            "releaseUrl": "releases/core/selfhelp-core-0.1.11.json"
         }
     ],
     "frontend": [
@@ -65,6 +107,66 @@
             "version": "0.1.5",
             "channel": "stable",
             "releaseUrl": "releases/frontend/selfhelp-frontend-0.1.5.json"
+        },
+        {
+            "id": "selfhelp-frontend-0.1.7",
+            "version": "0.1.7",
+            "channel": "stable",
+            "releaseUrl": "releases/frontend/selfhelp-frontend-0.1.7.json"
+        },
+        {
+            "id": "selfhelp-frontend-0.1.8",
+            "version": "0.1.8",
+            "channel": "stable",
+            "releaseUrl": "releases/frontend/selfhelp-frontend-0.1.8.json"
+        },
+        {
+            "id": "selfhelp-frontend-0.1.9",
+            "version": "0.1.9",
+            "channel": "stable",
+            "releaseUrl": "releases/frontend/selfhelp-frontend-0.1.9.json"
+        },
+        {
+            "id": "selfhelp-frontend-0.1.11",
+            "version": "0.1.11",
+            "channel": "stable",
+            "releaseUrl": "releases/frontend/selfhelp-frontend-0.1.11.json"
+        },
+        {
+            "id": "selfhelp-frontend-0.1.12",
+            "version": "0.1.12",
+            "channel": "stable",
+            "releaseUrl": "releases/frontend/selfhelp-frontend-0.1.12.json"
+        },
+        {
+            "id": "selfhelp-frontend-0.1.13",
+            "version": "0.1.13",
+            "channel": "stable",
+            "releaseUrl": "releases/frontend/selfhelp-frontend-0.1.13.json"
+        },
+        {
+            "id": "selfhelp-frontend-0.1.14",
+            "version": "0.1.14",
+            "channel": "stable",
+            "releaseUrl": "releases/frontend/selfhelp-frontend-0.1.14.json"
+        },
+        {
+            "id": "selfhelp-frontend-0.1.15",
+            "version": "0.1.15",
+            "channel": "stable",
+            "releaseUrl": "releases/frontend/selfhelp-frontend-0.1.15.json"
+        },
+        {
+            "id": "selfhelp-frontend-0.1.16",
+            "version": "0.1.16",
+            "channel": "stable",
+            "releaseUrl": "releases/frontend/selfhelp-frontend-0.1.16.json"
+        },
+        {
+            "id": "selfhelp-frontend-0.1.17",
+            "version": "0.1.17",
+            "channel": "stable",
+            "releaseUrl": "releases/frontend/selfhelp-frontend-0.1.17.json"
         }
     ],
     "scheduler": [
@@ -107,6 +209,12 @@
             "version": "0.2.22",
             "channel": "stable",
             "releaseUrl": "releases/plugins/sh2-shp-survey-js-0.2.22.json"
+        },
+        {
+            "id": "sh2-shp-survey-js",
+            "version": "0.2.23",
+            "channel": "stable",
+            "releaseUrl": "releases/plugins/sh2-shp-survey-js-0.2.23.json"
         }
     ]
 }
