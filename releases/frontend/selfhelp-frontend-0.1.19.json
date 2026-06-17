@@ -1,0 +1,22 @@
+{
+  "kind": "selfhelp-frontend-release",
+  "id": "selfhelp-frontend-0.1.19",
+  "version": "0.1.19",
+  "channel": "stable",
+  "releasedAt": "2026-06-17T10:55:40.431Z",
+  "image": "ghcr.io/humdek-unibe-ch/selfhelp-frontend:0.1.19",
+  "digest": "sha256:92f04df9d4d34b8e7ed90f830e9385617ac772d2097332529b22455bfbd799d2",
+  "builtFrom": {
+    "nextStandalone": true,
+    "sharedPackageVersion": "1.7.0"
+  },
+  "backendCompatibility": {
+    "requiredCoreRange": ">=0.1.12 <0.2.0",
+    "requiredApiVersion": "0.1.0"
+  },
+  "security": {
+    "signature": "iiUm75zZHIy+KbGEyy4ueyIKcvh6yDihBoehmVpBnMf97T4dyfpWbssLo6vibYtmy6+GIXo+E4HSih9IhL/kAg==",
+    "keyId": "prod",
+    "signedPayloadSha256": "sha256:286df18d4e061ea22cee3501bb1052cb61264ab631fd997b8d6d2f1f15de65fe"
+  }
+}
