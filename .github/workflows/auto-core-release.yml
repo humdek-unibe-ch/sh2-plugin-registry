@@ -21,9 +21,13 @@
 #   - skips duplicates (version already in registry.json or branch staged);
 #   - reads the component's own `release-manifest.json` at the git tag for the
 #     supported counterpart ranges (semver, checked BIDIRECTIONALLY);
+#   - in a coordinated wave (both sides bumped together) where the published
+#     counterpart is still the old incompatible version, falls back to the
+#     newest mutually-compatible counterpart git TAG so both new sides can stage
+#     together instead of deadlocking;
 #   - resolves every image digest from GHCR by tag and cross-checks any digest
 #     claimed by the trigger payload (mismatch = hard failure);
-#   - fails loudly on incompatible/missing counterparts instead of guessing.
+#   - fails loudly when no published release AND no counterpart tag matches.
 
 name: auto-core-release
 

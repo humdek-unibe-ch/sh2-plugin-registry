@@ -8,7 +8,7 @@ SPDX-License-Identifier: MPL-2.0
 Audience: Release engineers and maintainers, including first-time publishers.
 Status: active.
 Applies to: `sh2-plugin-registry`, `sh-selfhelp_backend`, `sh-selfhelp_frontend`, and every plugin repo (for example `sh2-shp-survey-js`).
-Last verified: 2026-06-10.
+Last verified: 2026-06-17.
 Source of truth: `.github/workflows/auto-core-release.yml`, `.github/workflows/publish-core-release.yml`, `.github/workflows/build-registry.yml`, `scripts/resolve-core-candidate.mjs`, `scripts/publish-release.mjs`, `scripts/sign-release.mjs`, `keys/trusted-keys.json`, backend `.github/workflows/docker-release.yml`, frontend `.github/workflows/frontend-release.yml`, and the plugin `publish-to-registry.yml` workflows.
 
 This is the "do this, then this" guide. It answers four questions:
@@ -56,9 +56,13 @@ Three rules to remember:
   automatic `auto-core-release` and the manual `publish-core-release`
   workflows stop at a reviewed PR. Plugins are the exception: a plugin tag
   publishes straight through (that is by design).
-- **Auto only stages what verifies.** The resolver declines (visibly, with the
-  reason) when the counterpart component is missing or the bidirectional
-  semver ranges do not match — see
+- **Auto only stages what verifies — and a coordinated wave no longer
+  deadlocks.** The resolver declines (visibly, with the reason) only when
+  *neither* a published counterpart release *nor* any counterpart git tag
+  satisfies the bidirectional semver ranges. When both sides bump together in
+  one breaking wave, each new side is matched against the counterpart's newest
+  compatible **tag**, so tagging both (in either order) stages both PRs without
+  a manual fallback — see
   [publishing.md, "Automatic release candidates"](publishing.md#automatic-release-candidates-auto-core-release).
 
 ## 2. One-time setup: the keys and secrets
@@ -143,9 +147,11 @@ For a coordinated "everything changed" wave:
    manual dispatch).
 3. **Tag the frontend** -> wait for green -> same auto flow stages the
    frontend PR.
-4. **Review + merge the staged PR(s) here** -> Pages republish. Fall back to
-   the manual `publish-core-release` workflow only when the resolver declined
-   (incompatible/missing counterpart) or for `scheduler`/`worker` kinds.
+4. **Review + merge the staged PR(s) here** -> Pages republish. In a coordinated
+   wave the resolver pairs each new side against the other's newest compatible
+   **git tag**, so both PRs stage even though neither counterpart is published
+   yet (tag order does not matter). The manual `publish-core-release` workflow is
+   only needed for `scheduler`/`worker` kinds or a deliberate one-off pin.
 5. **Tag plugins** (if any changed) -> fully automatic.
 
 Only releasing one thing? Do just its steps — the three release types are
@@ -329,7 +335,7 @@ change.
 | Host says `signature key not trusted (keyId=...)` on plugin install | Host env lacks the public key | Add `SELFHELP_PLUGIN_TRUSTED_KEYS=<keyId>=<base64-public>` on the host and restart PHP |
 | Pages site never updates after merge | GitHub Pages not enabled with the Actions source | Settings -> Pages -> Source = GitHub Actions |
 | Trivy scan step fails to resolve the action | A pre-`0.35.0` `trivy-action` tag (those tags were removed after the March 2026 supply-chain incident) | Pin `aquasecurity/trivy-action` to the `0.35.0` commit SHA (already done in backend/frontend release workflows) |
-| `auto-core-release` resolves `incompatible` or `missing-component` | The new component's `release-manifest.json` ranges do not match the latest stable counterpart (or no counterpart is published yet) | Intentional stop. Fix the ranges (component repo) and re-tag, publish the counterpart first, or use the manual `publish-core-release` with explicit metadata |
+| `auto-core-release` resolves `incompatible` or `missing-component` | Neither the latest published counterpart NOR any counterpart git tag satisfies the new component's `release-manifest.json` ranges. In a coordinated wave this usually just means the other side has not been tagged yet | Tag the counterpart too (either order — the resolver pairs a new core/frontend against the other's newest compatible TAG, so coordinated waves no longer deadlock). If the ranges themselves are wrong, fix them in the component repo and re-tag. Manual `publish-core-release` stays the override for `scheduler`/`worker` or one-off pins |
 | `auto-core-release` resolves `digest-mismatch` | The digests sent by the component workflow differ from what GHCR serves for the tag | Treat as a supply-chain alarm: verify the image tag was not moved, re-run the component release, only then re-dispatch |
 | Component tag built fine but no auto PR appeared | `REGISTRY_DISPATCH_TOKEN` not configured in the component repo | Wait for the daily reconcile, or run **Actions -> auto-core-release -> Run workflow** manually (kind + version) |
 

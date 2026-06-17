@@ -125,6 +125,27 @@ These rules apply to every documentation change in active SelfHelp2 repositories
 - Do not edit `manifests/<id>-<version>.json` after publish — bump
   the plugin version and publish a new entry instead.
 
+## Core/frontend release resolver rules
+
+`scripts/resolve-core-candidate.mjs` is the bidirectional compatibility gate for
+auto-staged `core`/`frontend` releases (`.github/workflows/auto-core-release.yml`).
+Keep these invariants when changing it:
+
+- The gate is **bidirectional**: a candidate must satisfy the counterpart's
+  required range AND the counterpart must satisfy the candidate's
+  `release-manifest.json` `supports.*` range.
+- A **coordinated breaking wave** (core + frontend bump together) must NOT
+  deadlock. When the latest *published* counterpart is the old, incompatible
+  version, the resolver falls back to the newest *mutually compatible*
+  counterpart **git tag** (read from the counterpart repo's
+  `release-manifest.json`) and stages anyway. Each side still stages its own
+  reviewed, signed PR, and the manager only ever installs a mutually-compatible
+  set, so a registry that briefly holds one side first is safe.
+- It must still fail loudly (`incompatible` / `missing-component`) when *neither*
+  a published release *nor* any counterpart tag satisfies the ranges.
+- Every behavior change here ships with a matching case in
+  `scripts/resolve-core-candidate.test.mjs` (`npm test`, fully offline).
+
 ## Trust-level rules
 
 Each plugin release document (`releases/plugins/<id>-<version>.json`) declares

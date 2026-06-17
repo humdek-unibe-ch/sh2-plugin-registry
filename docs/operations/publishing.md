@@ -268,8 +268,14 @@ What the resolver enforces before anything is signed:
 4. **Bidirectional compatibility** — a core candidate must accept the latest
    stable frontend **and** be accepted by that frontend's
    `backendCompatibility.requiredCoreRange` (mirrored for frontend
-   candidates). `missing-component` / `incompatible` outcomes fail the run
-   visibly; nothing is staged.
+   candidates). **Coordinated-wave fallback:** when the published counterpart is
+   still the old, now-incompatible version (both sides advanced together in one
+   breaking wave), the resolver re-checks against the newest **mutually
+   compatible counterpart git TAG** (read from the counterpart repo's
+   `release-manifest.json`) and stages anyway — so tagging both sides in either
+   order no longer deadlocks. It still fails (`incompatible` /
+   `missing-component`) when no compatible counterpart tag exists yet; nothing is
+   staged then.
 
 Resolver outcomes: `ready` (stage the PR), `duplicate` (skip, green),
 `missing-component` / `incompatible` / `digest-mismatch` / `error` (fail,
