@@ -77,6 +77,41 @@ test('buildPublishArgs + assembleRelease produce a schema-valid core release (dr
   assert.equal(body.security, undefined);
 });
 
+test('buildPublishArgs + assembleRelease produce a schema-valid mobile-preview release (seeded dry run)', () => {
+  // The mobile repo emits the descriptor; the publish step seeds bundledPlugins +
+  // renderer contract from it and overrides the image-derived axes from inputs.
+  const seedDescriptor = {
+    kind: 'selfhelp-mobile-preview-release',
+    version: '0.1.0',
+    channel: 'stable',
+    image: 'ghcr.io/humdek-unibe-ch/selfhelp-mobile-preview:0.1.0',
+    digest: `sha256:${'e'.repeat(64)}`,
+    backendCompatibility: { requiredCoreRange: '>=0.1.0 <0.2.0', requiredApiVersion: '0.1.0' },
+    mobileRendererVersion: '0.1.0',
+    bundledPlugins: [
+      { id: 'sh2-shp-survey-js', version: '0.2.23', mobilePackage: '@humdek/sh2-shp-survey-js-mobile', mobilePackageVersion: '0.2.23' },
+    ],
+  };
+  const args = buildPublishArgs({
+    kind: 'mobile-preview',
+    version: '0.2.0',
+    channel: 'test',
+    digests: { image: `sha256:${'f'.repeat(64)}` },
+    metadata: { requiredCoreRange: '>=0.1.19 <0.2.0', requiredApiVersion: '0.1.0', mobileRendererVersion: '0.1.0', sharedPackageVersion: '1.15.0' },
+  });
+  assert.equal(args.image, 'ghcr.io/humdek-unibe-ch/selfhelp-mobile-preview:0.2.0');
+  assert.equal(args['mobile-renderer-version'], '0.1.0');
+
+  const body = assembleRelease('mobile-preview', args, seedDescriptor);
+  assert.equal(body.kind, 'selfhelp-mobile-preview-release');
+  assert.equal(body.id, 'selfhelp-mobile-preview-0.2.0');
+  assert.equal(body.digest, `sha256:${'f'.repeat(64)}`, 'image digest from inputs overrides the seed');
+  assert.equal(body.backendCompatibility.requiredCoreRange, '>=0.1.19 <0.2.0');
+  assert.equal(body.bundledPlugins.length, 1, 'bundled set carried from the emitted descriptor');
+  assert.equal(body.bundledPlugins[0].mobilePackage, '@humdek/sh2-shp-survey-js-mobile');
+  assert.equal(body.security, undefined);
+});
+
 test('buildPublishArgs builds frontend/scheduler/worker args from version + owner', () => {
   for (const kind of ['frontend', 'scheduler', 'worker']) {
     const args = buildPublishArgs({

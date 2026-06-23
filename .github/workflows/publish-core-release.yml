@@ -27,7 +27,7 @@ on:
         description: "Release kind"
         required: true
         type: choice
-        options: [core, frontend, scheduler, worker]
+        options: [core, frontend, scheduler, worker, mobile-preview]
       version:
         description: "Release version (semver), e.g. 0.2.0"
         required: true
@@ -39,7 +39,7 @@ on:
         type: choice
         options: [stable, beta, nightly, test]
       seed_from:
-        description: "Optional release file to seed unchanged fields, e.g. releases/core/selfhelp-core-0.1.0.json"
+        description: "Optional release file to seed unchanged fields, e.g. releases/core/selfhelp-core-0.1.0.json (REQUIRED for mobile-preview: the descriptor the mobile repo emits, carrying bundledPlugins + mobileRendererVersion)"
         required: false
         type: string
       digests:
@@ -47,7 +47,7 @@ on:
         required: true
         type: string
       metadata:
-        description: 'JSON. core: {"minUpgradeFrom","pluginApi","frontendRange","migrationRange","destructive","php"} ; services: {"requiredCoreRange","requiredApiVersion"} ; frontend also: {"sharedPackageVersion"}'
+        description: 'JSON. core: {"minUpgradeFrom","pluginApi","frontendRange","migrationRange","destructive","php"} ; services: {"requiredCoreRange","requiredApiVersion"} ; frontend also: {"sharedPackageVersion"} ; mobile-preview also: {"mobileRendererVersion","sharedPackageVersion"}'
         required: false
         type: string
 

@@ -29,7 +29,7 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const RELEASE_KINDS = ['core', 'frontend', 'scheduler', 'worker', 'plugins'];
+const RELEASE_KINDS = ['core', 'frontend', 'scheduler', 'worker', 'plugins', 'mobile-preview'];
 
 function firstCommitIso(relPath) {
   // --diff-filter=A + --follow: the commit that added the file. Output is

@@ -1,0 +1,68 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://selfhelp.app/schemas/mobile-preview-release.schema.json",
+    "title": "SelfHelp mobile-preview release (signed)",
+    "description": "A signed SelfHelp mobile-preview release: a ready-built Expo web export image (served under /mobile-preview with a narrow same-origin backend proxy) plus backend compatibility metadata, the advertised mobile renderer contract version, and the curated bundled-plugin set. Peer of frontend-release.schema.json. Consumed by sh-manager. Mirrors @selfhelp/shared MobilePreviewRelease.",
+    "type": "object",
+    "required": ["kind", "id", "version", "channel", "image", "digest", "backendCompatibility", "mobileRendererVersion", "bundledPlugins", "security"],
+    "additionalProperties": true,
+    "properties": {
+        "kind": {"const": "selfhelp-mobile-preview-release"},
+        "id": {"type": "string", "minLength": 1},
+        "version": {"type": "string", "minLength": 1},
+        "channel": {"type": "string", "enum": ["stable", "beta", "nightly", "test"]},
+        "releasedAt": {"type": "string", "description": "ISO-8601 publish timestamp stamped by assemble-release.mjs."},
+        "image": {"type": "string", "minLength": 1},
+        "digest": {"type": "string", "minLength": 1},
+        "builtFrom": {"type": "object"},
+        "backendCompatibility": {
+            "type": "object",
+            "required": ["requiredCoreRange", "requiredApiVersion"],
+            "properties": {
+                "requiredCoreRange": {"type": "string"},
+                "requiredApiVersion": {"type": "string"}
+            }
+        },
+        "mobileRendererVersion": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The mobile renderer contract version this image advertises (semver). Plugin compatibility.mobile ranges are gated against this by the SelfHelp Manager preflight."
+        },
+        "reactNativeVersion": {
+            "type": "string",
+            "minLength": 1,
+            "description": "React Native version the preview image was built with. Plugin compatibility.reactNative ranges are gated against this by the SelfHelp Manager preflight."
+        },
+        "expoSdkVersion": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Expo SDK version the preview image was built with. Plugin compatibility.expoSdk ranges are gated against this by the SelfHelp Manager preflight."
+        },
+        "bundledPlugins": {
+            "type": "array",
+            "description": "Curated official-plugin mobile packages baked into the image (RN-on-web). The manager uses this to compute coverage (native vs. open-on-web) for a host's enabled plugins.",
+            "items": {
+                "type": "object",
+                "required": ["id", "version", "mobilePackage", "mobilePackageVersion"],
+                "additionalProperties": false,
+                "properties": {
+                    "id": {"type": "string", "minLength": 1},
+                    "version": {"type": "string", "minLength": 1},
+                    "mobilePackage": {"type": "string", "minLength": 1},
+                    "mobilePackageVersion": {"type": "string", "minLength": 1}
+                }
+            }
+        },
+        "security": {
+            "type": "object",
+            "required": ["signature", "keyId"],
+            "properties": {
+                "signature": {"type": "string", "minLength": 1},
+                "keyId": {"type": "string", "minLength": 1},
+                "signedPayload": {"type": "string"},
+                "signedPayloadSha256": {"type": "string"}
+            }
+        },
+        "blocked": {"type": "boolean"}
+    }
+}

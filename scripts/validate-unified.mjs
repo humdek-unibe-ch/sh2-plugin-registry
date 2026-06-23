@@ -124,6 +124,12 @@ for (const ref of registry.worker ?? []) {
   const release = loadJson(ref.releaseUrl);
   if (validate('worker-release.schema.json', ref.releaseUrl, release)) verifyRelease(release, ref.releaseUrl, trustedKeys);
 }
+// Mobile-preview releases (additive registry schemaVersion 1.1): one ref per
+// version, each a signed mobile-preview-release.schema.json doc verified here.
+for (const ref of registry.mobilePreview ?? []) {
+  const release = loadJson(ref.releaseUrl);
+  if (validate('mobile-preview-release.schema.json', ref.releaseUrl, release)) verifyRelease(release, ref.releaseUrl, trustedKeys);
+}
 // Plugin releases use the SAME release-ref -> signed-document contract as the
 // platform components, so the backend/CMS installer consumes one registry.json.
 // A plugin with several versions appears as several refs; each is validated

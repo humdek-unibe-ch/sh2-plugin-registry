@@ -14,6 +14,31 @@ serves — those are versioned in their own repositories and pinned per entry.
 
 ## [Unreleased]
 
+### Added
+
+- **`selfhelp-mobile-preview` release kind.** The registry now serves the Expo
+  **web export** image used for in-browser mobile preview behind the CMS, as an
+  independently versioned, signed artifact (`mobile-preview-release.schema.json`).
+  `registry.json` gains an optional `mobilePreview[]` array (additive
+  `registry.schemaVersion` `1.1`). Its release doc mirrors the frontend shape
+  plus `mobileRendererVersion` (the mobile renderer contract, mirroring
+  `@selfhelp/shared` `MOBILE_RENDERER_VERSION`) and `bundledPlugins[]` (the
+  curated official-plugin packages baked into the image). This is **not** the EAS
+  app binary (`selfhelp-mobile-release`, still design-only). See
+  `docs/reference/mobile-preview-release.md`.
+- **Mobile-preview auto-staging.** A dedicated
+  `.github/workflows/auto-mobile-preview-release.yml` consumes the
+  `mobile-preview-image-published` `repository_dispatch` from `sh-selfhelp_mobile`,
+  downloads the emitted (unsigned) descriptor, cross-checks the image digest, and
+  runs the **same** `publish-release.mjs` chain (assemble seed → prod-sign → add
+  ref → validate) to stage a reviewed PR. `publish-core-release.yml` also accepts
+  `kind = mobile-preview` for the manual path.
+- **Additive plugin `compatibility.mobile` axis.** `plugin-release.schema.json`
+  accepts an optional `compatibility.mobile` semver range and
+  `build-plugin-release.mjs` carries it through from the plugin manifest
+  (web-only plugins simply omit it). The mobile preview gates a plugin's native
+  rendering on this range vs the image's `mobileRendererVersion`.
+
 ## [1.0.2] - 2026-06-12
 
 ### Added

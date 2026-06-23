@@ -497,6 +497,22 @@
       return doc.image ? '<p class="images">' + imageLine(label, doc) + '</p>' : '';
     }
 
+    function mobilePreviewBody(doc) {
+      if (!doc) return noDetail();
+      const images = doc.image ? '<p class="images">' + imageLine('mobile-preview', doc) + '</p>' : '';
+      const bundled = Array.isArray(doc.bundledPlugins) && doc.bundledPlugins.length > 0
+        ? '<p class="desc">Bundled mobile plugins: <code>' + esc(doc.bundledPlugins.map((p) => p.id + '@' + p.version).join(', ')) + '</code></p>'
+        : '<p class="desc">No native mobile plugins are bundled; plugin styles fall back to open-on-web.</p>';
+      const reqs = reqsHtml([
+        doc.backendCompatibility && doc.backendCompatibility.requiredCoreRange ? 'SelfHelp core <code>' + esc(doc.backendCompatibility.requiredCoreRange) + '</code>' : '',
+        doc.backendCompatibility && doc.backendCompatibility.requiredApiVersion ? 'API version <code>' + esc(doc.backendCompatibility.requiredApiVersion) + '</code>' : '',
+        doc.mobileRendererVersion ? 'Mobile renderer <code>' + esc(doc.mobileRendererVersion) + '</code>' : '',
+        doc.reactNativeVersion ? 'React Native <code>' + esc(doc.reactNativeVersion) + '</code>' : '',
+        doc.expoSdkVersion ? 'Expo SDK <code>' + esc(doc.expoSdkVersion) + '</code>' : '',
+      ]);
+      return images + bundled + reqs;
+    }
+
     function pluginBody(release, manifest) {
       const description = (manifest && manifest.description) || 'No description provided.';
       const compat = (release && release.compatibility) || {};
@@ -537,6 +553,7 @@
       let links = [];
       if (group.kind === 'core') body = coreBody(newest.doc);
       else if (group.kind === 'frontend') body = frontendBody(newest.doc);
+      else if (group.kind === 'mobilePreview') body = mobilePreviewBody(newest.doc);
       else if (group.kind === 'scheduler' || group.kind === 'worker') body = simpleBody(group.kind, newest.doc);
       else {
         body = pluginBody(newest.doc, group.manifest);
@@ -645,6 +662,7 @@
       frontend: { title: 'SelfHelp Frontend', sub: 'Next.js standalone image served behind the manager\u2019s proxy' },
       scheduler: { title: 'SelfHelp Scheduler', sub: 'standalone scheduler release ref (image also ships with core)' },
       worker: { title: 'SelfHelp Worker', sub: 'standalone worker release ref (image also ships with core)' },
+      mobilePreview: { title: 'SelfHelp Mobile Preview', sub: 'Expo web preview image served at /mobile-preview' },
     };
 
     async function loadVersions(refs, releasesMeta) {
@@ -683,7 +701,7 @@
         const groups = [];
 
         // Platform: one group per component that has at least one release ref.
-        for (const kind of ['core', 'frontend', 'scheduler', 'worker']) {
+        for (const kind of ['core', 'frontend', 'scheduler', 'worker', 'mobilePreview']) {
           const versions = await loadVersions(data[kind], releasesMeta);
           if (versions.length === 0) continue;
           const meta = PLATFORM_META[kind];

@@ -25,6 +25,7 @@ Navigation entrypoint for the registry documentation, organized by audience and 
 | --- | --- |
 | Step-by-step: release backend/frontend/plugins end to end (tags, digests, keys, order) | [operations/release-runbook.md](operations/release-runbook.md) |
 | How the registry repo is laid out and what each entry must contain | [reference/registry-layout.md](reference/registry-layout.md) |
+| The `selfhelp-mobile-preview` release kind (fields, index ref, auto-staging) | [reference/mobile-preview-release.md](reference/mobile-preview-release.md) |
 | How a plugin author publishes or updates a plugin | [operations/publishing.md](operations/publishing.md) |
 | How signing keys, signatures, and trust levels work | [operations/signing.md](operations/signing.md) |
 

@@ -18,22 +18,26 @@ SPDX-License-Identifier: MPL-2.0
  * `validate:unified` + `guard:trust` after this script (the workflow does).
  *
  * Environment inputs:
- *   PUBLISH_KIND          core | frontend | scheduler | worker   (required)
+ *   PUBLISH_KIND          core | frontend | scheduler | worker | mobile-preview (required)
  *   PUBLISH_VERSION       semver                                  (required)
  *   PUBLISH_CHANNEL       stable | beta | nightly | test          (default stable)
- *   PUBLISH_SEED_FROM     release file to seed unchanged fields   (optional)
+ *   PUBLISH_SEED_FROM     release file to seed unchanged fields   (optional;
+ *                         REQUIRED for mobile-preview — the descriptor the mobile
+ *                         repo emits, carrying bundledPlugins + mobileRendererVersion)
  *   PUBLISH_DIGESTS       JSON; core: {"backend","worker","scheduler"};
  *                         others: {"image"}                       (required)
  *   PUBLISH_METADATA      JSON; core: {minUpgradeFrom, pluginApi, frontendRange,
  *                         migrationRange, destructive, requiresBackup,
  *                         manualConfirm, php}; services: {requiredCoreRange,
  *                         requiredApiVersion}; frontend additionally:
- *                         {sharedPackageVersion}                   (optional)
+ *                         {sharedPackageVersion}; mobile-preview additionally:
+ *                         {mobileRendererVersion, reactNativeVersion,
+ *                         expoSdkVersion, sharedPackageVersion}  (optional)
  *   PUBLISH_IMAGE_OWNER   ghcr owner for image tags               (default humdek-unibe-ch)
  *   SELFHELP_SIGNING_KEY / _ID   production Ed25519 key + id (set by CI secret)
  */
 import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -81,7 +85,33 @@ export function buildPublishArgs({ kind, version, channel, digests = {}, metadat
       ...(kind === 'frontend' ? { 'shared-package-version': metadata.sharedPackageVersion } : {}),
     });
   }
-  throw new Error('PUBLISH_KIND must be one of: core, frontend, scheduler, worker');
+  if (kind === 'mobile-preview') {
+    // The mobile repo emits a complete descriptor (mobile-preview-release.json)
+    // which is passed as PUBLISH_SEED_FROM; bundledPlugins comes from that seed.
+    // mobileRendererVersion is image-built provenance, so it travels in metadata
+    // (the descriptor also carries it; the flag, when present, overrides).
+    return prune({
+      ...base,
+      image: tag('mobile-preview'),
+      digest: digests.image,
+      'required-core-range': metadata.requiredCoreRange,
+      'required-api-version': metadata.requiredApiVersion,
+      'mobile-renderer-version': metadata.mobileRendererVersion,
+      'react-native-version': metadata.reactNativeVersion,
+      'expo-sdk-version': metadata.expoSdkVersion,
+      'shared-package-version': metadata.sharedPackageVersion,
+    });
+  }
+  throw new Error('PUBLISH_KIND must be one of: core, frontend, scheduler, worker, mobile-preview');
+}
+
+/**
+ * The release files live under `releases/<kind>/` (dir == CLI kind), but the
+ * registry.json arrays use camelCase keys (`mobilePreview`), so the ref kind
+ * diverges from the directory kind for mobile-preview only.
+ */
+function registryKindFor(kind) {
+  return kind === 'mobile-preview' ? 'mobilePreview' : kind;
 }
 
 function boolStr(v) {
@@ -119,6 +149,8 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
 
     const releaseUrl = `releases/${kind}/selfhelp-${kind}-${version}.json`;
     const outPath = path.join(ROOT, releaseUrl);
+    // The first release of a new kind (e.g. mobile-preview) has no directory yet.
+    mkdirSync(path.dirname(outPath), { recursive: true });
     writeFileSync(outPath, JSON.stringify(body, null, 2) + '\n', 'utf8');
     process.stderr.write(`assembled ${releaseUrl}\n`);
 
@@ -130,7 +162,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
 
     const registryPath = path.join(ROOT, 'registry.json');
     const registry = JSON.parse(readFileSync(registryPath, 'utf8'));
-    addReleaseRef(registry, kind, { id: body.id, version, channel: body.channel, releaseUrl });
+    addReleaseRef(registry, registryKindFor(kind), { id: body.id, version, channel: body.channel, releaseUrl });
     writeFileSync(registryPath, JSON.stringify(registry, null, 4) + '\n', 'utf8');
     process.stderr.write(`registry.json updated with ${body.id}\n`);
   } catch (err) {

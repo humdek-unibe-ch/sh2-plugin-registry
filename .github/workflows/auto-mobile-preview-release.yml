@@ -1,0 +1,235 @@
+# SPDX-FileCopyrightText: 2026 Humdek, University of Bern
+# SPDX-License-Identifier: MPL-2.0
+#
+# AUTO selfhelp-mobile-preview release candidates.
+#
+# When sh-selfhelp_mobile publishes the `selfhelp-mobile-preview` image for a new
+# tag (web-preview-release.yml), it emits an UNSIGNED registry descriptor
+# (mobile-preview-release.json) carrying the real image ref + digest, the
+# advertised mobileRendererVersion, and the curated bundledPlugins, and dispatches
+# `mobile-preview-image-published` here. This workflow seeds the publish chain
+# from that descriptor, signs it with the official key, adds the registry ref, and
+# stages a signed, REVIEWED pull request. It NEVER makes a release installable by
+# itself — only a human merging the PR republishes the registry (same safety model
+# as auto-core-release.yml / publish-core-release.yml).
+#
+# This is intentionally simpler than resolve-core-candidate.mjs: a mobile-preview
+# release is one image with a self-contained descriptor (no bidirectional
+# counterpart matching), so the descriptor IS the resolved candidate. The
+# backend-compatibility floor + renderer contract + bundled set are read straight
+# from the emitted descriptor; the digest from the payload is cross-checked.
+#
+# Triggers:
+#   - repository_dispatch from sh-selfhelp_mobile (instant; needs a
+#     REGISTRY_DISPATCH_TOKEN secret in the mobile repo);
+#   - workflow_dispatch (manual replay of a single version).
+
+name: auto-mobile-preview-release
+
+on:
+  repository_dispatch:
+    types: [mobile-preview-image-published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "selfhelp-mobile-preview version (semver, without leading v)"
+        required: true
+        type: string
+      repo:
+        description: "Mobile repo (owner/name) that holds the release descriptor"
+        required: false
+        default: ""
+        type: string
+      channel:
+        description: "Release channel"
+        required: true
+        default: stable
+        type: choice
+        options: [stable, beta, nightly, test]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: auto-mobile-preview-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      SELFHELP_SIGNING_KEY: ${{ secrets.SELFHELP_SIGNING_KEY }}
+      SELFHELP_SIGNING_KEY_ID: ${{ secrets.SELFHELP_SIGNING_KEY_ID }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci || npm install
+
+      # Normalise the inputs from either trigger into a single set of vars.
+      - name: Resolve trigger inputs
+        id: vars
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          DISPATCH_VERSION: ${{ github.event.client_payload.version }}
+          DISPATCH_REPO: ${{ github.event.client_payload.repo }}
+          DISPATCH_IMAGE_DIGEST: ${{ github.event.client_payload.digests.image }}
+          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_REPO: ${{ inputs.repo }}
+          INPUT_CHANNEL: ${{ inputs.channel }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "repository_dispatch" ]; then
+            version="$DISPATCH_VERSION"
+            repo="$DISPATCH_REPO"
+            image_digest="$DISPATCH_IMAGE_DIGEST"
+            channel="stable"
+          else
+            version="$INPUT_VERSION"
+            repo="$INPUT_REPO"
+            image_digest=""
+            channel="$INPUT_CHANNEL"
+          fi
+          [ -n "$version" ] || { echo "::error::version is required."; exit 1; }
+          # Default the descriptor repo to the org's mobile repo.
+          [ -n "$repo" ] || repo="${OWNER}/sh-selfhelp_mobile"
+          {
+            echo "version=$version"
+            echo "repo=$repo"
+            echo "image_digest=$image_digest"
+            echo "channel=$channel"
+          } >> "$GITHUB_OUTPUT"
+          echo "mobile-preview $version from $repo (channel $channel)"
+
+      - name: Skip when this version is already in the registry
+        id: dup
+        env:
+          VERSION: ${{ steps.vars.outputs.version }}
+        run: |
+          set -euo pipefail
+          if node -e "const r=require('./registry.json');process.exit((r.mobilePreview||[]).some(x=>x.version===process.env.VERSION)?0:1)"; then
+            echo "duplicate=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::mobile-preview $VERSION is already in registry.json — nothing to stage."
+          else
+            echo "duplicate=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # The mobile workflow attaches the unsigned descriptor to its GitHub release.
+      - name: Download the emitted release descriptor
+        if: steps.dup.outputs.duplicate != 'true'
+        env:
+          VERSION: ${{ steps.vars.outputs.version }}
+          REPO: ${{ steps.vars.outputs.repo }}
+        run: |
+          set -euo pipefail
+          gh release download "v${VERSION}" \
+            --repo "$REPO" \
+            --pattern 'mobile-preview-release.json' \
+            --output seed-mobile-preview-release.json
+          echo "Descriptor:"
+          cat seed-mobile-preview-release.json
+
+      # Cross-check the digest the trigger claimed against the descriptor (a
+      # mismatch means the dispatch and the attached descriptor disagree — fail).
+      - name: Verify digest + extract publish inputs
+        if: steps.dup.outputs.duplicate != 'true'
+        id: extract
+        env:
+          CLAIMED_IMAGE_DIGEST: ${{ steps.vars.outputs.image_digest }}
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { readFileSync, appendFileSync } from 'node:fs';
+          const d = JSON.parse(readFileSync('seed-mobile-preview-release.json', 'utf8'));
+          const claimed = process.env.CLAIMED_IMAGE_DIGEST || '';
+          if (claimed && d.digest && claimed !== d.digest) {
+            console.error(`::error::dispatch digest (${claimed}) != descriptor digest (${d.digest}).`);
+            process.exit(1);
+          }
+          const digest = d.digest || claimed;
+          if (!digest) { console.error('::error::no image digest in descriptor or payload.'); process.exit(1); }
+          const meta = {
+            requiredCoreRange: d.backendCompatibility?.requiredCoreRange,
+            requiredApiVersion: d.backendCompatibility?.requiredApiVersion,
+            mobileRendererVersion: d.mobileRendererVersion,
+            reactNativeVersion: d.reactNativeVersion ?? d.builtFrom?.reactNative,
+            expoSdkVersion: d.expoSdkVersion ?? d.builtFrom?.expoSdk,
+            sharedPackageVersion: d.builtFrom?.sharedPackageVersion,
+          };
+          const out = process.env.GITHUB_OUTPUT;
+          appendFileSync(out, `digests=${JSON.stringify({ image: digest })}\n`);
+          appendFileSync(out, `metadata=${JSON.stringify(meta)}\n`);
+          console.log('digests', JSON.stringify({ image: digest }));
+          console.log('metadata', JSON.stringify(meta));
+          NODE
+
+      - name: Refuse to dev-sign a non-test release
+        if: steps.dup.outputs.duplicate != 'true' && steps.vars.outputs.channel != 'test' && env.SELFHELP_SIGNING_KEY == ''
+        run: |
+          echo "::error::channel '${{ steps.vars.outputs.channel }}' requires the production signing key. Set SELFHELP_SIGNING_KEY / SELFHELP_SIGNING_KEY_ID secrets, or use channel 'test'."
+          exit 1
+
+      - name: Assemble + sign + add registry ref
+        if: steps.dup.outputs.duplicate != 'true'
+        env:
+          PUBLISH_KIND: mobile-preview
+          PUBLISH_VERSION: ${{ steps.vars.outputs.version }}
+          PUBLISH_CHANNEL: ${{ steps.vars.outputs.channel }}
+          PUBLISH_SEED_FROM: seed-mobile-preview-release.json
+          PUBLISH_DIGESTS: ${{ steps.extract.outputs.digests }}
+          PUBLISH_METADATA: ${{ steps.extract.outputs.metadata }}
+          PUBLISH_IMAGE_OWNER: ${{ github.repository_owner }}
+        run: node scripts/publish-release.mjs
+
+      - name: Validate registry + re-verify signatures
+        if: steps.dup.outputs.duplicate != 'true'
+        run: |
+          npm run validate:unified
+          npm run guard:trust
+
+      - name: Open reviewed pull request
+        if: steps.dup.outputs.duplicate != 'true'
+        continue-on-error: true
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: publish/mobile-preview-${{ steps.vars.outputs.version }}
+          title: "Publish mobile-preview ${{ steps.vars.outputs.version }} (${{ steps.vars.outputs.channel }}) [auto]"
+          body: |
+            Auto-staged from the `selfhelp-mobile-preview` image release.
+
+            - version: **${{ steps.vars.outputs.version }}** on `${{ steps.vars.outputs.channel }}`
+            - descriptor: downloaded from `${{ steps.vars.outputs.repo }}` release `v${{ steps.vars.outputs.version }}`
+            - digests (payload cross-checked against descriptor):
+            ```json
+            ${{ steps.extract.outputs.digests }}
+            ```
+            - metadata (renderer/RN/Expo contract + backend floor from the descriptor):
+            ```json
+            ${{ steps.extract.outputs.metadata }}
+            ```
+
+            Reviewer checklist before merge:
+            - [ ] The image digest matches the mobile release workflow output.
+            - [ ] `validate:unified` is green (schema + Ed25519 signature re-verified).
+            - [ ] `guard:trust` is green.
+            - [ ] `mobileRendererVersion`, `reactNativeVersion`, `expoSdkVersion`, and `bundledPlugins` look correct.
+
+            Merging to `main` republishes GitHub Pages. This PR does **not** auto-merge.
+          labels: release
+          delete-branch: true
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### auto-mobile-preview-release: ${{ steps.vars.outputs.version }} -> ${{ steps.dup.outputs.duplicate == 'true' && 'duplicate' || 'staged' }}"
+            if [ "${{ steps.dup.outputs.duplicate }}" != "true" ]; then
+              echo ""
+              echo "- branch: \`publish/mobile-preview-${{ steps.vars.outputs.version }}\`"
+              echo "- open the reviewed PR (if not auto-created): https://github.com/${{ github.repository }}/compare/main...publish/mobile-preview-${{ steps.vars.outputs.version }}?expand=1"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

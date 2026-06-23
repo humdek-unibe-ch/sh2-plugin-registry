@@ -23,7 +23,7 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const VALID_KINDS = ['core', 'frontend', 'scheduler', 'worker', 'plugins'];
+const VALID_KINDS = ['core', 'frontend', 'scheduler', 'worker', 'plugins', 'mobilePreview'];
 
 /**
  * Insert or replace `ref` in the `registry[kind]` array.
