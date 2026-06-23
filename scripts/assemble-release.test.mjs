@@ -211,6 +211,49 @@ test('assembles + signs + verifies a mobile-preview release seeded from the emit
   signValidateVerify(body);
 });
 
+test('mobile-preview manual --from path recovers RN/Expo from builtFrom-only descriptors', async () => {
+  await sodium.ready;
+  // Regression: an older mobile-repo emitter (or a hand-written descriptor) put
+  // React Native / Expo SDK ONLY under builtFrom, not top-level. The MANUAL
+  // publish path (assemble --from <descriptor>, no --react-native-version flag)
+  // must still emit the canonical TOP-LEVEL reactNativeVersion/expoSdkVersion —
+  // otherwise the manager's plugin gate falsely blocks any plugin declaring
+  // compatibility.reactNative / compatibility.expoSdk. The registry auto-staging
+  // workflow has its own bridge; this proves the manual path no longer depends on it.
+  const builtFromOnly = {
+    kind: 'selfhelp-mobile-preview-release',
+    id: 'selfhelp-mobile-preview-0.2.0',
+    version: '0.2.0',
+    channel: 'stable',
+    image: 'ghcr.io/humdek-unibe-ch/selfhelp-mobile-preview:0.2.0',
+    digest: `sha256:${'9'.repeat(64)}`,
+    builtFrom: { expoWebExport: true, sharedPackageVersion: '1.15.0', expoSdk: '~55.0.23', reactNative: '0.83.6' },
+    backendCompatibility: { requiredCoreRange: '>=0.1.19 <0.2.0', requiredApiVersion: '0.1.0' },
+    mobileRendererVersion: '0.1.0',
+    // NOTE: no top-level reactNativeVersion / expoSdkVersion on purpose.
+    bundledPlugins: [],
+  };
+  const body = assembleRelease(
+    'mobile-preview',
+    parseArgs(['--kind', 'mobile-preview', '--version', '0.2.0', '--channel', 'test']),
+    builtFromOnly,
+  );
+  assert.equal(body.reactNativeVersion, '0.83.6', 'RN recovered from builtFrom on the manual path');
+  assert.equal(body.expoSdkVersion, '~55.0.23', 'Expo SDK recovered from builtFrom on the manual path');
+  // An explicit flag still wins over the builtFrom fallback.
+  const overridden = assembleRelease(
+    'mobile-preview',
+    parseArgs([
+      '--kind', 'mobile-preview', '--version', '0.2.0', '--channel', 'test',
+      '--react-native-version', '0.84.0', '--expo-sdk-version', '56.0.0',
+    ]),
+    builtFromOnly,
+  );
+  assert.equal(overridden.reactNativeVersion, '0.84.0', 'an explicit RN flag overrides builtFrom');
+  assert.equal(overridden.expoSdkVersion, '56.0.0', 'an explicit Expo flag overrides builtFrom');
+  signValidateVerify(body);
+});
+
 test('rejects an unknown kind and missing required inputs', () => {
   assert.throws(() => assembleRelease('plugin', parseArgs(['--version', '1.0.0'])), /--kind must be one of/);
   assert.throws(() => assembleRelease('core', parseArgs(['--kind', 'core'])), /--version is required/);

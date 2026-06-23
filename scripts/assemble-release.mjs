@@ -218,8 +218,15 @@ function buildMobilePreview(args, seed) {
       requiredApiVersion: str(args['required-api-version']) || seed.backendCompatibility?.requiredApiVersion,
     },
     mobileRendererVersion: str(args['mobile-renderer-version']) || seed.mobileRendererVersion,
-    reactNativeVersion: str(args['react-native-version']) || seed.reactNativeVersion,
-    expoSdkVersion: str(args['expo-sdk-version']) || seed.expoSdkVersion,
+    // RN/Expo are canonical TOP-LEVEL fields, but tolerate a seed descriptor
+    // that only carried them under `builtFrom` (older mobile-repo emitters): the
+    // flag wins, then the seed's top-level value, then the builtFrom provenance.
+    // Without this fallback the MANUAL `--from <descriptor>` publish path would
+    // silently drop them and the manager's plugin gate would falsely block any
+    // plugin declaring compatibility.reactNative / compatibility.expoSdk.
+    reactNativeVersion:
+      str(args['react-native-version']) || seed.reactNativeVersion || str(seed.builtFrom?.reactNative),
+    expoSdkVersion: str(args['expo-sdk-version']) || seed.expoSdkVersion || str(seed.builtFrom?.expoSdk),
     bundledPlugins,
   });
 }

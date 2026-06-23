@@ -39,6 +39,20 @@ serves — those are versioned in their own repositories and pinned per entry.
   (web-only plugins simply omit it). The mobile preview gates a plugin's native
   rendering on this range vs the image's `mobileRendererVersion`.
 
+### Changed
+
+- **`assemble-release.mjs` recovers mobile-preview RN/Expo from `builtFrom`.**
+  When seeding a `mobile-preview` release via `--from <descriptor>`,
+  `reactNativeVersion` / `expoSdkVersion` now fall back to
+  `builtFrom.reactNative` / `builtFrom.expoSdk` when absent at the top level
+  (precedence: CLI flag → top-level seed → `builtFrom`). Previously the manual
+  publish path silently dropped them for any descriptor that only carried them
+  under `builtFrom`, which made the manager's dual-axis plugin gate falsely block
+  plugins declaring `compatibility.reactNative` / `compatibility.expoSdk`. The
+  auto-staging workflow already bridged this; the assembler now does too, so both
+  paths emit the canonical top-level fields. Covered by a new
+  `assemble-release.test.mjs` regression case.
+
 ## [1.0.2] - 2026-06-12
 
 ### Added
