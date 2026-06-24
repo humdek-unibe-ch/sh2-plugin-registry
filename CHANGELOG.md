@@ -12,7 +12,46 @@ This file tracks the **registry content and tooling** (schemas, scripts, layout,
 trust model), not the versions of the individual plugins or platform releases it
 serves — those are versioned in their own repositories and pinned per entry.
 
-## [Unreleased]
+## [1.1.0] - 2026-06-24
+
+### Added
+
+- **`selfhelp-mobile-preview` release kind.** The registry now serves the Expo
+  **web export** image used for in-browser mobile preview behind the CMS, as an
+  independently versioned, signed artifact (`mobile-preview-release.schema.json`).
+  `registry.json` gains an optional `mobilePreview[]` array (additive
+  `registry.schemaVersion` `1.1`). Its release doc mirrors the frontend shape
+  plus `mobileRendererVersion` (the mobile renderer contract, mirroring
+  `@selfhelp/shared` `MOBILE_RENDERER_VERSION`) and `bundledPlugins[]` (the
+  curated official-plugin packages baked into the image). This is **not** the EAS
+  app binary (`selfhelp-mobile-release`, still design-only). See
+  `docs/reference/mobile-preview-release.md`.
+- **Mobile-preview auto-staging.** A dedicated
+  `.github/workflows/auto-mobile-preview-release.yml` consumes the
+  `mobile-preview-image-published` `repository_dispatch` from `sh-selfhelp_mobile`,
+  downloads the emitted (unsigned) descriptor, cross-checks the image digest, and
+  runs the **same** `publish-release.mjs` chain (assemble seed → prod-sign → add
+  ref → validate) to stage a reviewed PR. `publish-core-release.yml` also accepts
+  `kind = mobile-preview` for the manual path.
+- **Additive plugin `compatibility.mobile` axis.** `plugin-release.schema.json`
+  accepts an optional `compatibility.mobile` semver range and
+  `build-plugin-release.mjs` carries it through from the plugin manifest
+  (web-only plugins simply omit it). The mobile preview gates a plugin's native
+  rendering on this range vs the image's `mobileRendererVersion`.
+
+### Changed
+
+- **`assemble-release.mjs` recovers mobile-preview RN/Expo from `builtFrom`.**
+  When seeding a `mobile-preview` release via `--from <descriptor>`,
+  `reactNativeVersion` / `expoSdkVersion` now fall back to
+  `builtFrom.reactNative` / `builtFrom.expoSdk` when absent at the top level
+  (precedence: CLI flag → top-level seed → `builtFrom`). Previously the manual
+  publish path silently dropped them for any descriptor that only carried them
+  under `builtFrom`, which made the manager's dual-axis plugin gate falsely block
+  plugins declaring `compatibility.reactNative` / `compatibility.expoSdk`. The
+  auto-staging workflow already bridged this; the assembler now does too, so both
+  paths emit the canonical top-level fields. Covered by a new
+  `assemble-release.test.mjs` regression case.
 
 ## [1.0.2] - 2026-06-12
 

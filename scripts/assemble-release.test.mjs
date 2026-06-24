@@ -56,6 +56,7 @@ function schemaFor(kind) {
     'selfhelp-frontend-release': 'frontend-release.schema.json',
     'selfhelp-scheduler-release': 'scheduler-release.schema.json',
     'selfhelp-worker-release': 'worker-release.schema.json',
+    'selfhelp-mobile-preview-release': 'mobile-preview-release.schema.json',
   }[kind];
   return JSON.parse(readFileSync(path.join(ROOT, file), 'utf8'));
 }
@@ -163,6 +164,94 @@ test('assembles + signs + verifies frontend/scheduler/worker releases', async ()
     assert.equal(body.id, `selfhelp-${kind}-0.2.0`);
     signValidateVerify(body);
   }
+});
+
+test('assembles + signs + verifies a mobile-preview release seeded from the emitted descriptor', async () => {
+  await sodium.ready;
+  // The mobile repo emits an unsigned descriptor (mobile-preview-release.json);
+  // the registry seeds from it and overrides the image-derived fields. The
+  // renderer contract + curated bundled set come from the seed.
+  const emitted = {
+    kind: 'selfhelp-mobile-preview-release',
+    id: 'selfhelp-mobile-preview-0.2.0',
+    version: '0.2.0',
+    channel: 'stable',
+    image: 'ghcr.io/humdek-unibe-ch/selfhelp-mobile-preview:0.2.0',
+    digest: `sha256:${'f'.repeat(64)}`,
+    builtFrom: { expoWebExport: true, sharedPackageVersion: '1.15.0', expoSdk: '~55.0.23', reactNative: '0.83.6' },
+    backendCompatibility: { requiredCoreRange: '>=0.1.19 <0.2.0', requiredApiVersion: '0.1.0' },
+    mobileRendererVersion: '0.1.0',
+    reactNativeVersion: '0.83.6',
+    expoSdkVersion: '55.0.0',
+    bundledPlugins: [
+      { id: 'sh2-shp-survey-js', version: '0.2.23', mobilePackage: '@humdek/sh2-shp-survey-js-mobile', mobilePackageVersion: '0.2.23' },
+    ],
+  };
+  const body = assembleRelease(
+    'mobile-preview',
+    parseArgs([
+      '--kind', 'mobile-preview', '--version', '0.2.0', '--channel', 'test',
+      '--image', 'ghcr.io/humdek-unibe-ch/selfhelp-mobile-preview:0.2.0', '--digest', `sha256:${'f'.repeat(64)}`,
+      '--required-core-range', '>=0.1.19 <0.2.0', '--required-api-version', '0.1.0',
+    ]),
+    emitted,
+  );
+
+  assert.equal(body.kind, 'selfhelp-mobile-preview-release');
+  assert.equal(body.id, 'selfhelp-mobile-preview-0.2.0');
+  assert.equal(body.channel, 'test', 'an explicit channel overrides the seed');
+  assert.equal(body.mobileRendererVersion, '0.1.0', 'renderer contract carried from the seed');
+  assert.equal(body.reactNativeVersion, '0.83.6', 'React Native version carried from the seed');
+  assert.equal(body.expoSdkVersion, '55.0.0', 'Expo SDK version carried from the seed');
+  assert.equal(body.bundledPlugins.length, 1);
+  assert.equal(body.bundledPlugins[0].mobilePackage, '@humdek/sh2-shp-survey-js-mobile');
+  assert.equal(body.backendCompatibility.requiredCoreRange, '>=0.1.19 <0.2.0');
+  assert.equal(body.security, undefined, 'assemble never emits a security block');
+
+  signValidateVerify(body);
+});
+
+test('mobile-preview manual --from path recovers RN/Expo from builtFrom-only descriptors', async () => {
+  await sodium.ready;
+  // Regression: an older mobile-repo emitter (or a hand-written descriptor) put
+  // React Native / Expo SDK ONLY under builtFrom, not top-level. The MANUAL
+  // publish path (assemble --from <descriptor>, no --react-native-version flag)
+  // must still emit the canonical TOP-LEVEL reactNativeVersion/expoSdkVersion —
+  // otherwise the manager's plugin gate falsely blocks any plugin declaring
+  // compatibility.reactNative / compatibility.expoSdk. The registry auto-staging
+  // workflow has its own bridge; this proves the manual path no longer depends on it.
+  const builtFromOnly = {
+    kind: 'selfhelp-mobile-preview-release',
+    id: 'selfhelp-mobile-preview-0.2.0',
+    version: '0.2.0',
+    channel: 'stable',
+    image: 'ghcr.io/humdek-unibe-ch/selfhelp-mobile-preview:0.2.0',
+    digest: `sha256:${'9'.repeat(64)}`,
+    builtFrom: { expoWebExport: true, sharedPackageVersion: '1.15.0', expoSdk: '~55.0.23', reactNative: '0.83.6' },
+    backendCompatibility: { requiredCoreRange: '>=0.1.19 <0.2.0', requiredApiVersion: '0.1.0' },
+    mobileRendererVersion: '0.1.0',
+    // NOTE: no top-level reactNativeVersion / expoSdkVersion on purpose.
+    bundledPlugins: [],
+  };
+  const body = assembleRelease(
+    'mobile-preview',
+    parseArgs(['--kind', 'mobile-preview', '--version', '0.2.0', '--channel', 'test']),
+    builtFromOnly,
+  );
+  assert.equal(body.reactNativeVersion, '0.83.6', 'RN recovered from builtFrom on the manual path');
+  assert.equal(body.expoSdkVersion, '~55.0.23', 'Expo SDK recovered from builtFrom on the manual path');
+  // An explicit flag still wins over the builtFrom fallback.
+  const overridden = assembleRelease(
+    'mobile-preview',
+    parseArgs([
+      '--kind', 'mobile-preview', '--version', '0.2.0', '--channel', 'test',
+      '--react-native-version', '0.84.0', '--expo-sdk-version', '56.0.0',
+    ]),
+    builtFromOnly,
+  );
+  assert.equal(overridden.reactNativeVersion, '0.84.0', 'an explicit RN flag overrides builtFrom');
+  assert.equal(overridden.expoSdkVersion, '56.0.0', 'an explicit Expo flag overrides builtFrom');
+  signValidateVerify(body);
 });
 
 test('rejects an unknown kind and missing required inputs', () => {

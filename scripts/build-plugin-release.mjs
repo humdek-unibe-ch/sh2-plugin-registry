@@ -85,10 +85,16 @@ export function buildPluginRelease(manifest, { channel = 'stable', archiveSha256
     releasedAt: typeof releasedAt === 'string' && releasedAt !== '' ? releasedAt : new Date().toISOString(),
     channel,
     official: manifest?.security?.trustLevel === 'official',
-    compatibility: {
+    compatibility: prune({
       core,
       pluginApi: pluginApiRange(manifest.pluginApiVersion),
-    },
+      // Mobile renderer axis (additive): carried through from the manifest so
+      // the Manager can gate the plugin's mobile package against the selected
+      // mobile-preview image's mobileRendererVersion. Absent for web-only plugins.
+      mobile: str(manifest?.compatibility?.mobile),
+      reactNative: str(manifest?.compatibility?.reactNative),
+      expoSdk: str(manifest?.compatibility?.expoSdk),
+    }),
     dependencies: {
       plugins: mapDependencies(manifest.dependencies),
     },
@@ -175,6 +181,12 @@ function parseArgs(rest) {
 
 function str(v) {
   return typeof v === 'string' && v !== '' ? v : undefined;
+}
+
+/** Drop keys whose value is undefined so optional axes (compatibility.mobile) stay absent. */
+function prune(obj) {
+  for (const k of Object.keys(obj)) if (obj[k] === undefined) delete obj[k];
+  return obj;
 }
 
 // CLI entrypoint (skipped when imported by a test).

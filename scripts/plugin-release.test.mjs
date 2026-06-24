@@ -69,6 +69,26 @@ test('buildPluginRelease marks a non-official manifest as official:false', () =>
   assert.equal(release.official, false);
 });
 
+test('buildPluginRelease carries additive mobile compatibility axes when declared', () => {
+  const withMobile = buildPluginRelease(
+    manifest({
+      compatibility: {
+        selfhelp: '>=0.1.0 <0.2.0',
+        mobile: '>=0.1.0 <0.2.0',
+        reactNative: '^0.83.0',
+        expoSdk: '^55.0.0',
+      },
+    }),
+    { archiveSha256: SHA, baseUrl: BASE },
+  );
+  assert.equal(withMobile.compatibility.mobile, '>=0.1.0 <0.2.0', 'mobile range mapped from the manifest');
+  assert.equal(withMobile.compatibility.reactNative, '^0.83.0', 'React Native range mapped from the manifest');
+  assert.equal(withMobile.compatibility.expoSdk, '^55.0.0', 'Expo SDK range mapped from the manifest');
+  // A web-only plugin (no compatibility.mobile) must NOT carry the key.
+  const webOnly = buildPluginRelease(manifest(), { archiveSha256: SHA, baseUrl: BASE });
+  assert.equal('mobile' in webOnly.compatibility, false, 'absent mobile axis stays absent (web-only plugin)');
+});
+
 test('buildPluginRelease rejects a malformed checksum', () => {
   assert.throws(() => buildPluginRelease(manifest(), { archiveSha256: 'not-a-sha', baseUrl: BASE }), /64-char hex digest/);
 });

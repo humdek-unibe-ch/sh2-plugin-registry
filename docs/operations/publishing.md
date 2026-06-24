@@ -3,8 +3,8 @@
 Audience: Plugin authors, platform release engineers, and registry maintainers.
 Status: active.
 Applies to: `sh2-plugin-registry`.
-Last verified: 2026-06-10.
-Source of truth: `scripts/build-plugin-release.mjs`, `scripts/sign.mjs`, `scripts/sign-release.mjs`, `scripts/assemble-release.mjs`, `scripts/publish-release.mjs`, `scripts/add-release-ref.mjs`, `scripts/validate-unified.mjs`, `.github/workflows/build-registry.yml`, and `.github/workflows/publish-core-release.yml`.
+Last verified: 2026-06-23.
+Source of truth: `scripts/build-plugin-release.mjs`, `scripts/sign.mjs`, `scripts/sign-release.mjs`, `scripts/assemble-release.mjs`, `scripts/publish-release.mjs`, `scripts/add-release-ref.mjs`, `scripts/validate-unified.mjs`, `.github/workflows/build-registry.yml`, `.github/workflows/publish-core-release.yml`, `.github/workflows/auto-core-release.yml`, and `.github/workflows/auto-mobile-preview-release.yml`.
 
 > Just want the ordered, copy-paste release steps? Read the
 > [release runbook](release-runbook.md) first — this page is the full
@@ -20,9 +20,14 @@ channel, releaseUrl}`) that point at standalone signed release documents:
   `releases/plugins/<id>-<version>.json` (schema: `plugin-release.schema.json`),
   with the `.shplugin` install artifact + canonical `plugin.json` alongside (see
   [Adding or updating a plugin](#adding-or-updating-a-plugin)).
-- **Platform releases** — signed **core**, **frontend**, **scheduler**, and
-  **worker** release metadata consumed by the SelfHelp Manager (`sh-manager`)
-  (see [Publishing a platform release](#publishing-a-platform-release)).
+- **Platform releases** — signed **core**, **frontend**, **scheduler**,
+  **worker**, and **mobile-preview** release metadata consumed by the SelfHelp
+  Manager (`sh-manager`) (see
+  [Publishing a platform release](#publishing-a-platform-release)). The
+  `selfhelp-mobile-preview` image (the Expo web export served behind the CMS for
+  in-browser mobile preview) is published with the same chain; its extra fields
+  and auto-staging are documented in
+  [reference/mobile-preview-release.md](../reference/mobile-preview-release.md).
 
 Both use the same canonical-JSON + Ed25519 trust model (see
 [signing.md](signing.md)) and the same trusted-keys file. The registry layout and
@@ -157,21 +162,25 @@ make the release reproducible.
 
 GitHub → **Actions → publish-core-release → Run workflow**, then fill the inputs:
 
-- `kind` — `core` / `frontend` / `scheduler` / `worker`.
+- `kind` — `core` / `frontend` / `scheduler` / `worker` / `mobile-preview`.
 - `version` — the semver being published, e.g. `0.2.0` (pre-release `0.x`: every
   minor is breaking).
 - `channel` — `stable` for a real public release (`beta`/`nightly` as needed;
   `test` is for rehearsal only, see below).
 - `seed_from` *(optional)* — an existing release file to copy unchanged fields
-  from, e.g. `releases/core/selfhelp-core-0.1.0.json`.
+  from, e.g. `releases/core/selfhelp-core-0.1.0.json`. **Required for
+  `mobile-preview`**: the `mobile-preview-release.json` descriptor the mobile
+  repo emits (carries `bundledPlugins` + `mobileRendererVersion`).
 - `digests` — JSON of the digests from step 1. For `core`:
   `{"backend":"sha256:…","worker":"sha256:…","scheduler":"sha256:…"}`; for the
-  others: `{"image":"sha256:…"}`.
+  others (incl. `mobile-preview`): `{"image":"sha256:…"}`.
 - `metadata` *(optional)* — compatibility fields. For `core`:
   `{"minUpgradeFrom","pluginApi","frontendRange","migrationRange","destructive","php"}`;
   for services: `{"requiredCoreRange","requiredApiVersion"}`; for `frontend`
   additionally `{"sharedPackageVersion"}` (the `@selfhelp/shared` version the
-  image was built with — overrides the stale seeded `builtFrom` value).
+  image was built with — overrides the stale seeded `builtFrom` value); for
+  `mobile-preview` additionally
+  `{"mobileRendererVersion","reactNativeVersion","expoSdkVersion","sharedPackageVersion"}`.
 
 The job runs `scripts/publish-release.mjs`, which chains
 `assemble-release.mjs` → `sign-release.mjs` (with the production key from the
@@ -284,6 +293,33 @@ nothing staged). Tests: `scripts/resolve-core-candidate.test.mjs`
 
 `scheduler` / `worker` releases are core-coupled and rare — they stay on the
 manual `publish-core-release` workflow.
+
+### Automatic mobile-preview release candidates (`auto-mobile-preview-release`)
+
+The `selfhelp-mobile-preview` image stages itself the same way, but through a
+**dedicated, simpler** workflow (`.github/workflows/auto-mobile-preview-release.yml`)
+rather than `resolve-core-candidate.mjs` — a mobile-preview release is a single
+self-contained image whose descriptor already declares its backend floor,
+renderer contract, React Native/Expo versions, and bundled-plugin set. The
+Manager later pairs it with core via `backendCompatibility.requiredCoreRange`.
+
+```mermaid
+flowchart LR
+  tag["sh-selfhelp_mobile tag push (v*)"] --> img["web-preview-release.yml:\nbuild + push image, emit\nmobile-preview-release.json (unsigned)"]
+  img --> disp["repository_dispatch\nmobile-preview-image-published\n{version, repo, digests.image}"]
+  disp --> dl["download the attached descriptor\n+ cross-check the payload digest"]
+  dl --> chain["publish-release.mjs\n(assemble seed -> prod-sign -> ref -> validate)"]
+  chain --> pr["reviewed PR (no auto-merge)"]
+  pr --> merge["human merge republishes Pages"]
+```
+
+`bundledPlugins`, `mobileRendererVersion`, `reactNativeVersion`, and
+`expoSdkVersion` are **never** re-derived here — they are image-built facts
+carried verbatim from the descriptor (`PUBLISH_SEED_FROM`). The image digest is
+resolved from the descriptor and cross-checked against the dispatch payload
+(mismatch = hard fail). The human review + merge gate is unchanged. Manual replay: **Actions →
+auto-mobile-preview-release → Run workflow** (version + optional mobile repo),
+or the manual `publish-core-release` workflow with `kind = mobile-preview`.
 
 ## Security advisories
 

@@ -21,7 +21,7 @@ SPDX-License-Identifier: MPL-2.0
  * rather than at sign/verify time.
  *
  * Inputs (common):
- *   --kind core|frontend|scheduler|worker   release kind (required)
+ *   --kind core|frontend|scheduler|worker|mobile-preview   release kind (required)
  *   --version <semver>                       release version (required)
  *   --channel stable|beta|nightly|test       default: inherited / `stable`
  *   --id <id>                                default: selfhelp-<kind>-<version>
@@ -50,13 +50,21 @@ SPDX-License-Identifier: MPL-2.0
  *   --manual-confirm [true|false]            default: inherited / false
  *   (the optional `runtime` block is carried forward verbatim from --from)
  *
- * Frontend / scheduler / worker inputs:
+ * Frontend / scheduler / worker / mobile-preview inputs:
  *   --image / --digest
  *   --required-core-range <range>
  *   --required-api-version <version>         (frontend: required; services: optional)
- *   --shared-package-version <version>       (frontend only: the @selfhelp/shared
- *                                            version the image was built with;
- *                                            overrides the seeded builtFrom value)
+ *   --shared-package-version <version>       (frontend + mobile-preview: the
+ *                                            @selfhelp/shared version the image was
+ *                                            built with; overrides seeded builtFrom)
+ *
+ * Mobile-preview-only inputs (NOT image-derivable — normally seeded via --from
+ * the descriptor the mobile repo emits):
+ *   --mobile-renderer-version <semver>       mobile renderer contract version
+ *   --react-native-version <semver>          React Native version in the image
+ *   --expo-sdk-version <semver>              Expo SDK version in the image
+ *   --bundled-plugins-file <json>            curated bundled-plugin set (array or
+ *                                            {bundledPlugins:[...]}); overrides seed
  *
  * Example (a 0.2.0 core that mirrors 0.1.0 but with new images + migrations):
  *   node scripts/assemble-release.mjs --kind core --from releases/core/selfhelp-core-0.1.0.json \
@@ -81,6 +89,7 @@ const KIND_MAP = {
   frontend: 'selfhelp-frontend-release',
   scheduler: 'selfhelp-scheduler-release',
   worker: 'selfhelp-worker-release',
+  'mobile-preview': 'selfhelp-mobile-preview-release',
 };
 
 const SCHEMA_FILE = {
@@ -88,6 +97,7 @@ const SCHEMA_FILE = {
   'selfhelp-frontend-release': 'frontend-release.schema.json',
   'selfhelp-scheduler-release': 'scheduler-release.schema.json',
   'selfhelp-worker-release': 'worker-release.schema.json',
+  'selfhelp-mobile-preview-release': 'mobile-preview-release.schema.json',
 };
 
 export function assembleRelease(kindArg, args, seedRaw = {}) {
@@ -99,6 +109,7 @@ export function assembleRelease(kindArg, args, seedRaw = {}) {
   let body;
   if (kind === 'selfhelp-core-release') body = buildCore(args, seed);
   else if (kind === 'selfhelp-frontend-release') body = buildFrontend(args, seed);
+  else if (kind === 'selfhelp-mobile-preview-release') body = buildMobilePreview(args, seed);
   else body = buildService(kind, args, seed);
 
   validateUnsigned(kind, body);
@@ -170,6 +181,53 @@ function buildFrontend(args, seed) {
       requiredCoreRange: str(args['required-core-range']) || seed.backendCompatibility?.requiredCoreRange,
       requiredApiVersion: str(args['required-api-version']) || seed.backendCompatibility?.requiredApiVersion,
     },
+  });
+}
+
+/**
+ * Mobile-preview release: the frontend image shape PLUS the mobile renderer
+ * contract version + the curated bundled-plugin set. `mobileRendererVersion`
+ * and `bundledPlugins` are NOT image-derivable, so the normal flow seeds them
+ * from the descriptor the mobile repo emits (`--from mobile-preview-release.json`);
+ * `--mobile-renderer-version` and `--bundled-plugins-file <json>` override.
+ */
+function buildMobilePreview(args, seed) {
+  const version = required(args, 'version');
+  const builtFrom = { ...(seed.builtFrom ?? {}) };
+  const sharedPackageVersion = str(args['shared-package-version']);
+  if (sharedPackageVersion) builtFrom.sharedPackageVersion = sharedPackageVersion;
+
+  let bundledPlugins = Array.isArray(seed.bundledPlugins) ? seed.bundledPlugins : [];
+  const bundledFile = str(args['bundled-plugins-file']);
+  if (bundledFile) {
+    const parsed = JSON.parse(readFileSync(bundledFile, 'utf8'));
+    bundledPlugins = Array.isArray(parsed) ? parsed : (Array.isArray(parsed.bundledPlugins) ? parsed.bundledPlugins : bundledPlugins);
+  }
+
+  return prune({
+    kind: 'selfhelp-mobile-preview-release',
+    id: str(args.id) || `selfhelp-mobile-preview-${version}`,
+    version,
+    channel: str(args.channel) || seed.channel || 'stable',
+    releasedAt: releasedAt(args, seed, version),
+    image: str(args.image) || seed.image,
+    digest: str(args.digest) || seed.digest,
+    ...(Object.keys(builtFrom).length ? { builtFrom } : {}),
+    backendCompatibility: {
+      requiredCoreRange: str(args['required-core-range']) || seed.backendCompatibility?.requiredCoreRange,
+      requiredApiVersion: str(args['required-api-version']) || seed.backendCompatibility?.requiredApiVersion,
+    },
+    mobileRendererVersion: str(args['mobile-renderer-version']) || seed.mobileRendererVersion,
+    // RN/Expo are canonical TOP-LEVEL fields, but tolerate a seed descriptor
+    // that only carried them under `builtFrom` (older mobile-repo emitters): the
+    // flag wins, then the seed's top-level value, then the builtFrom provenance.
+    // Without this fallback the MANUAL `--from <descriptor>` publish path would
+    // silently drop them and the manager's plugin gate would falsely block any
+    // plugin declaring compatibility.reactNative / compatibility.expoSdk.
+    reactNativeVersion:
+      str(args['react-native-version']) || seed.reactNativeVersion || str(seed.builtFrom?.reactNative),
+    expoSdkVersion: str(args['expo-sdk-version']) || seed.expoSdkVersion || str(seed.builtFrom?.expoSdk),
+    bundledPlugins,
   });
 }
 

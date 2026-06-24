@@ -3,15 +3,15 @@
 Audience: Plugin authors and registry maintainers.
 Status: active.
 Applies to: `sh2-plugin-registry`.
-Last verified: 2026-06-09.
-Source of truth: `registry.json`, `registry.schema.json`, `plugin-release.schema.json`, `core-release.schema.json`, `frontend-release.schema.json`, `scheduler-release.schema.json`, `worker-release.schema.json`, `compatibility.schema.json`, `trusted-keys.schema.json`, `advisory-feed.schema.json`, `plugin-manifest.schema.json`, and the repository tree.
+Last verified: 2026-06-23.
+Source of truth: `registry.json`, `registry.schema.json`, `plugin-release.schema.json`, `core-release.schema.json`, `frontend-release.schema.json`, `scheduler-release.schema.json`, `worker-release.schema.json`, `mobile-preview-release.schema.json`, `compatibility.schema.json`, `trusted-keys.schema.json`, `advisory-feed.schema.json`, `plugin-manifest.schema.json`, and the repository tree.
 
 ## Unified registry (core + frontend + plugins)
 
 This repository is the **one official SelfHelp registry**. In addition to the
 plugin catalogue, it serves the signed **core**, **frontend**, **scheduler**,
-and **worker** release metadata consumed by the SelfHelp Manager (`sh-manager`).
-There is no second registry.
+**worker**, and **mobile-preview** release metadata consumed by the SelfHelp
+Manager (`sh-manager`). There is no second registry.
 
 `registry.json` is a unified index of **release refs** — every kind (plugins and
 platform components alike) is `{id, version, channel, releaseUrl}` pointing at a
@@ -25,6 +25,7 @@ standalone signed release document:
 | `frontend[]` | Release refs → `releases/frontend/<id>.json`. |
 | `scheduler[]` | First-class scheduled-jobs-runner release refs → `releases/scheduler/<id>.json`. |
 | `worker[]` | First-class Messenger-worker release refs → `releases/worker/<id>.json`. |
+| `mobilePreview[]` | **Multi-version** `selfhelp-mobile-preview` image release refs → `releases/mobile-preview/<id>.json`. Optional (additive, `registry.schemaVersion` `1.1`). |
 | `trustedKeysUrl` | Path to `keys/trusted-keys.json` (public Ed25519 keys). |
 | `advisoriesUrl` | Path to `advisories.json` (security advisory feed). |
 
@@ -37,6 +38,17 @@ versions). Their release docs mirror the frontend release shape with a
 the manager resolves the newest non-blocked scheduler/worker whose
 `requiredCoreRange` the chosen core version satisfies (`@shm/resolver`
 `pickSchedulerForCore` / `pickWorkerForCore`).
+
+The **mobile-preview** image (`selfhelp-mobile-preview`) is the Expo **web
+export** of the mobile app, served behind the CMS so an admin can preview the
+mobile rendering of a page in-browser. It is **not** the EAS app binary (that is
+the design-only `selfhelp-mobile-release` kind — see
+[mobile-release.md](mobile-release.md)). Its release doc mirrors the frontend
+shape (`image` + `digest` + `backendCompatibility`) and additionally carries
+`mobileRendererVersion` (the mobile renderer contract the image is built against,
+mirroring `@selfhelp/shared` `MOBILE_RENDERER_VERSION`) and `bundledPlugins[]`
+(the curated official-plugin packages baked into the image). The full field
+reference is in [mobile-preview-release.md](mobile-preview-release.md).
 
 Each `releases/**/*.json` file is a fully signed release: it carries a
 `security` block `{signature, keyId, signedPayloadSha256}`. The signature is an
@@ -67,6 +79,7 @@ sh2-plugin-registry/
 ├── frontend-release.schema.json        # signed frontend release schema
 ├── scheduler-release.schema.json       # signed scheduler release schema
 ├── worker-release.schema.json          # signed worker release schema
+├── mobile-preview-release.schema.json  # signed selfhelp-mobile-preview release schema
 ├── compatibility.schema.json           # reusable backendCompatibility descriptor
 ├── trusted-keys.schema.json            # public Ed25519 trusted-keys schema
 ├── advisory-feed.schema.json           # security advisory feed schema
@@ -79,7 +92,8 @@ sh2-plugin-registry/
 │   ├── core/<id>.json                  # signed SelfHelp core releases
 │   ├── frontend/<id>.json              # signed SelfHelp frontend releases
 │   ├── scheduler/<id>.json             # signed SelfHelp scheduler releases
-│   └── worker/<id>.json                # signed SelfHelp worker releases
+│   ├── worker/<id>.json                # signed SelfHelp worker releases
+│   └── mobile-preview/<id>.json        # signed selfhelp-mobile-preview releases
 ├── manifests/
 │   └── <plugin-id>-<version>.json      # canonical plugin.json snapshot
 ├── artifacts/

@@ -9,7 +9,8 @@
     "properties": {
         "schemaVersion": {
             "type": "string",
-            "enum": ["1.0"]
+            "enum": ["1.0", "1.1"],
+            "description": "1.1 adds the additive `mobilePreview` release-ref array; older managers ignore the unknown array, so 1.0 consumers stay compatible."
         },
         "requiresManager": {
             "type": "string",
@@ -63,6 +64,11 @@
         "plugins": {
             "type": "array",
             "description": "Plugin releases. ONE ref per published (plugin, version) — a plugin with several versions appears as several refs — each pointing at a signed plugin-release.schema.json document via `releaseUrl`. The CMS/backend resolves the newest COMPATIBLE version per plugin. Unified with core/frontend/scheduler/worker so a single registry.json feeds both installers (Manager owns the Dockerised platform; the CMS owns plugins).",
+            "items": {"$ref": "#/$defs/releaseRef"}
+        },
+        "mobilePreview": {
+            "type": "array",
+            "description": "SelfHelp mobile-preview releases (signed Expo web-export images served under /mobile-preview). Additive (registry schemaVersion 1.1): one ref per version, each pointing at a signed mobile-preview-release.schema.json document. Older managers ignore the unknown array.",
             "items": {"$ref": "#/$defs/releaseRef"}
         }
     },

@@ -24,8 +24,9 @@ It contains:
   payload, `scripts/sign-release.mjs` for release docs),
 - the plugin-release builder (`scripts/build-plugin-release.mjs`),
 - the trust-field guard (`scripts/guard-trust-fields.mjs`),
-- one CI workflow that validates and republishes the static site
-  (`.github/workflows/build-registry.yml`).
+- CI workflows for validation/Pages publishing and staged core/frontend
+  releases (`build-registry.yml`, `auto-core-release.yml`, and
+  `publish-core-release.yml`).
 
 There is **no Symfony, no Doctrine, no PHP, no runtime plugin code**
 in this repo. Plugins themselves live in their own repositories under
@@ -195,6 +196,8 @@ Run from the repo root:
 
 - `npm ci`
 - `npm run validate` — schema validation of `registry.json`.
+- `npm run validate:unified` — cross-check refs and verify signed release docs.
+- `npm test` — offline unit tests for release assembly, publishing, and resolver behavior.
 - `npm run guard:trust` — refuses placeholder/dev signing fields on
   `official`/`reviewed` entries.
 - `npx ajv validate -c ajv-formats -s plugin-manifest.schema.json -d manifests/<file>.json --strict=false`
