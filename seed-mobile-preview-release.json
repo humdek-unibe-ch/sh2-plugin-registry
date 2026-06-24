@@ -1,0 +1,22 @@
+{
+  "kind": "selfhelp-mobile-preview-release",
+  "id": "selfhelp-mobile-preview-0.1.21",
+  "version": "0.1.21",
+  "channel": "stable",
+  "image": "ghcr.io/humdek-unibe-ch/selfhelp-mobile-preview:0.1.21",
+  "digest": "sha256:f1df9b85ac4524e78a9d38488961dd1e6d3f3ae76a997d19ef2fb001c1f9250a",
+  "builtFrom": {
+    "expoWebExport": true,
+    "sharedPackageVersion": "^1.15.3",
+    "expoSdk": "~55.0.23",
+    "reactNative": "0.83.6"
+  },
+  "backendCompatibility": {
+    "requiredCoreRange": ">=0.1.19 <0.2.0",
+    "requiredApiVersion": "0.1.0"
+  },
+  "mobileRendererVersion": "0.1.0",
+  "reactNativeVersion": "0.83.6",
+  "expoSdkVersion": "55.0.23",
+  "bundledPlugins": []
+}

@@ -282,5 +282,13 @@
             "channel": "stable",
             "releaseUrl": "releases/plugins/sh2-shp-survey-js-0.2.24.json"
         }
+    ],
+    "mobilePreview": [
+        {
+            "id": "selfhelp-mobile-preview-0.1.21",
+            "version": "0.1.21",
+            "channel": "stable",
+            "releaseUrl": "releases/mobile-preview/selfhelp-mobile-preview-0.1.21.json"
+        }
     ]
 }
