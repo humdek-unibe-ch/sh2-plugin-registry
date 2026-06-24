@@ -12,7 +12,7 @@ This file tracks the **registry content and tooling** (schemas, scripts, layout,
 trust model), not the versions of the individual plugins or platform releases it
 serves — those are versioned in their own repositories and pinned per entry.
 
-## [Unreleased]
+## [1.1.0] - 2026-06-24
 
 ### Added
 
