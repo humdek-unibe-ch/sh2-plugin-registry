@@ -2,7 +2,7 @@
   "kind": "selfhelp-plugin-release",
   "id": "sh2-shp-survey-js",
   "version": "0.2.24",
-  "releasedAt": "2026-06-24T18:25:43.258Z",
+  "releasedAt": "2026-06-24T18:44:34.780Z",
   "channel": "stable",
   "official": true,
   "compatibility": {
@@ -21,8 +21,8 @@
     "sha256": "sha256:acf5d8a5ba30bce0201ddd45bbffb8b65845fea34db498e391ee194854255f72"
   },
   "security": {
-    "signature": "h0VRQOduNgV9/dtyHbR1BbdQlr1ZXqmYxt9CNhqYobplY36K+roTt+6fTfYkd/weyXJP/SuKwwzKekzD2GViCQ==",
+    "signature": "xkV1xEgV4Kf3MC/YZ43p/bmrtGW7+5DCHGKnQ35bOeRblOTzFI3NT6SYGoRLVLRcZvGpXYsh7ygUVCTkxHbGCA==",
     "keyId": "prod",
-    "signedPayloadSha256": "sha256:7fa1f8463933d998b9b0f597202aa1c4724c451c7d2ee976e69f0afe9133a29a"
+    "signedPayloadSha256": "sha256:55720603e0b3139ff89ae3bb0ceb2a6768c6b66a95b148e25da055f132a0151a"
   }
 }
