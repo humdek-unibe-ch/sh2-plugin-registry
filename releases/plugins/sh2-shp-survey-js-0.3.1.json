@@ -1,0 +1,28 @@
+{
+  "kind": "selfhelp-plugin-release",
+  "id": "sh2-shp-survey-js",
+  "version": "0.3.1",
+  "releasedAt": "2026-06-24T22:42:40.212Z",
+  "channel": "stable",
+  "official": true,
+  "compatibility": {
+    "core": ">=0.1.0",
+    "pluginApi": ">=0.1.0 <0.2.0",
+    "mobile": "^0.2.0",
+    "reactNative": "^0.83",
+    "expoSdk": "^55"
+  },
+  "dependencies": {
+    "plugins": []
+  },
+  "artifacts": {
+    "manifestUrl": "https://humdek-unibe-ch.github.io/sh2-plugin-registry/manifests/sh2-shp-survey-js-0.3.1.json",
+    "archiveUrl": "https://humdek-unibe-ch.github.io/sh2-plugin-registry/artifacts/sh2-shp-survey-js-0.3.1.shplugin",
+    "sha256": "sha256:c653278d7a06092c0a68f462e3aaee5f0bc02b2eed6f1c5631a718c4aa7455ca"
+  },
+  "security": {
+    "signature": "JktyFOhnOnWf58zUz8eWvxVtbNv11WAWv+X9BK5xbw8Fx7Ujag5G4dxySMjKM9e9U5ayzHFWBCyUEm+o6ZdwDw==",
+    "keyId": "prod",
+    "signedPayloadSha256": "sha256:d52a404ca01b1ddeeae793c287ed5ccd9b2e4f63e2dcbf9b11d0243dfafb3405"
+  }
+}
