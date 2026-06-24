@@ -1,7 +1,7 @@
 {
     "schemaVersion": "1.0",
     "requiresManager": ">=0.1.0",
-    "publishedAt": "2026-06-16T21:08:32Z",
+    "publishedAt": "2026-06-24T18:44:34Z",
     "baseUrl": "https://humdek-unibe-ch.github.io/sh2-plugin-registry/",
     "publisher": {
         "name": "Humdek, University of Bern",
@@ -221,6 +221,12 @@
             "version": "0.1.30",
             "channel": "stable",
             "releaseUrl": "releases/frontend/selfhelp-frontend-0.1.30.json"
+        },
+        {
+            "id": "selfhelp-frontend-0.1.43",
+            "version": "0.1.43",
+            "channel": "stable",
+            "releaseUrl": "releases/frontend/selfhelp-frontend-0.1.43.json"
         }
     ],
     "scheduler": [
@@ -269,6 +275,12 @@
             "version": "0.2.23",
             "channel": "stable",
             "releaseUrl": "releases/plugins/sh2-shp-survey-js-0.2.23.json"
+        },
+        {
+            "id": "sh2-shp-survey-js",
+            "version": "0.2.24",
+            "channel": "stable",
+            "releaseUrl": "releases/plugins/sh2-shp-survey-js-0.2.24.json"
         }
     ]
 }
