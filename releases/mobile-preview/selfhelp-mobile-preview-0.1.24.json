@@ -3,6 +3,7 @@
   "id": "selfhelp-mobile-preview-0.1.24",
   "version": "0.1.24",
   "channel": "stable",
+  "releasedAt": "2026-06-25T11:00:25.994Z",
   "image": "ghcr.io/humdek-unibe-ch/selfhelp-mobile-preview:0.1.24",
   "digest": "sha256:0b1e2d51202387404d8f2eb2851e79b3ce504433106dcbb8aaff60ae96d5839e",
   "builtFrom": {
@@ -25,5 +26,10 @@
       "mobilePackage": "@selfhelp/sh2-shp-survey-js-mobile",
       "mobilePackageVersion": "0.3.3"
     }
-  ]
+  ],
+  "security": {
+    "signature": "cfkRNRCoa1+8xppXGGm0Ypq0TYJkCld32aBPGut93x2NI88zduvo/VmJyai47yphzpfUH+BsnhkEqGJGOHh2Aw==",
+    "keyId": "prod",
+    "signedPayloadSha256": "sha256:e9ac54d5147ffdfbd11f88ed08fb889fd10a2fb2438501dd11de747ce19011ca"
+  }
 }
