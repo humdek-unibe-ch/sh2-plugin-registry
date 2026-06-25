@@ -1,7 +1,7 @@
 {
     "schemaVersion": "1.0",
     "requiresManager": ">=0.1.0",
-    "publishedAt": "2026-06-24T22:42:40Z",
+    "publishedAt": "2026-06-25T06:07:39Z",
     "baseUrl": "https://humdek-unibe-ch.github.io/sh2-plugin-registry/",
     "publisher": {
         "name": "Humdek, University of Bern",
@@ -293,6 +293,12 @@
             "version": "0.3.1",
             "channel": "stable",
             "releaseUrl": "releases/plugins/sh2-shp-survey-js-0.3.1.json"
+        },
+        {
+            "id": "sh2-shp-survey-js",
+            "version": "0.3.2",
+            "channel": "stable",
+            "releaseUrl": "releases/plugins/sh2-shp-survey-js-0.3.2.json"
         }
     ],
     "mobilePreview": [
