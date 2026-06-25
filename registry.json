@@ -361,6 +361,12 @@
             "version": "0.1.25",
             "channel": "stable",
             "releaseUrl": "releases/mobile-preview/selfhelp-mobile-preview-0.1.25.json"
+        },
+        {
+            "id": "selfhelp-mobile-preview-0.1.26",
+            "version": "0.1.26",
+            "channel": "stable",
+            "releaseUrl": "releases/mobile-preview/selfhelp-mobile-preview-0.1.26.json"
         }
     ]
 }
