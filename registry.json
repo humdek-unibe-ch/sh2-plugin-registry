@@ -111,6 +111,12 @@
             "version": "0.1.21",
             "channel": "stable",
             "releaseUrl": "releases/core/selfhelp-core-0.1.21.json"
+        },
+        {
+            "id": "selfhelp-core-0.1.22",
+            "version": "0.1.22",
+            "channel": "stable",
+            "releaseUrl": "releases/core/selfhelp-core-0.1.22.json"
         }
     ],
     "frontend": [
