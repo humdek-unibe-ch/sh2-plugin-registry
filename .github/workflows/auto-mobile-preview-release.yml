@@ -129,7 +129,8 @@ jobs:
           gh release download "v${VERSION}" \
             --repo "$REPO" \
             --pattern 'mobile-preview-release.json' \
-            --output seed-mobile-preview-release.json
+            --output seed-mobile-preview-release.json \
+            --clobber
           echo "Descriptor:"
           cat seed-mobile-preview-release.json
 
